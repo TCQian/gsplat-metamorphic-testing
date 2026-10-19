@@ -1,17 +1,22 @@
-"""Numerical comparison metrics for the metamorphic oracle.
+"""Numerical comparison metrics and pass/violation verdicts for the metamorphic oracle.
 
-Implements D_max and D_MAE from the proposal (main.tex, Section "Metamorphic
-Oracle") plus basic NaN/Inf/shape sanity checks so unstable generator
-parameters surface immediately instead of silently producing garbage diffs.
+D_max / D_MAE plus NaN/Inf/shape checks. A NaN/Inf mismatch between the two
+images counts as an infinite difference rather than being dropped by max().
+Tolerances come from the preliminary study's measured noise floor.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Tuple
+from typing import Optional, Tuple
 
 import torch
 from torch import Tensor
+
+
+# Max absolute pixel difference tolerated per relation. MR1 packed/unpacked
+# showed ~1e-7 float noise; MR2 and MR3 (correct) were bit-identical.
+TOLERANCES = {"mr1": 1e-4, "mr2": 0.0, "mr3": 0.0}
 
 
 @dataclass
@@ -36,7 +41,9 @@ def compare_images(a: Tensor, b: Tensor) -> ImageDiff:
         raise ValueError(f"shape mismatch: {tuple(a.shape)} vs {tuple(b.shape)}")
     a32 = a.detach().float()
     b32 = b.detach().float()
-    diff = (a32 - b32).abs()
+    same = (a32 == b32) | (torch.isnan(a32) & torch.isnan(b32))
+    diff = torch.where(same, torch.zeros_like(a32), (a32 - b32).abs())
+    diff = torch.where(torch.isnan(diff), torch.full_like(diff, float("inf")), diff)
     return ImageDiff(
         d_max=diff.max().item(),
         d_mae=diff.mean().item(),
@@ -44,3 +51,20 @@ def compare_images(a: Tensor, b: Tensor) -> ImageDiff:
         has_inf=bool(torch.isinf(a32).any() or torch.isinf(b32).any()),
         shape=tuple(a.shape),
     )
+
+
+def verdict(
+    diffs: Tuple[Optional[ImageDiff], ...], error: Optional[str], tol: float
+) -> str:
+    """crash | violation | invalid_output | pass.
+
+    invalid_output: both configurations agree within `tol` but emit NaN/Inf.
+    """
+    if error is not None:
+        return "crash"
+    diffs = tuple(d for d in diffs if d is not None)
+    if any(d.d_max > tol for d in diffs):
+        return "violation"
+    if any(d.has_nan or d.has_inf for d in diffs):
+        return "invalid_output"
+    return "pass"

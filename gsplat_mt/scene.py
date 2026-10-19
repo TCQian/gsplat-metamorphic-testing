@@ -10,10 +10,8 @@ Conventions (must match gsplat v1.5.3, see gsplat/rendering.py::rasterization):
     +Z forward into the scene).
   - Ks are standard 3x3 pinhole intrinsics.
 
-The geometry formulas here (uniform-ball sampling, random unit quaternion,
-look-at matrix, pinhole intrinsics) are mirrored in
-`scripts/selfcheck_geometry.py`, a numpy-only, torch/gsplat-free script used to
-validate the math without needing a CUDA environment.
+`sample_scene` adds edge-case modes (extreme opacity/scale, anisotropy, wide
+spread, far-clipped, N=1) on top of the default `sample_gaussians` generator.
 """
 
 from __future__ import annotations
@@ -131,6 +129,68 @@ def sample_gaussians(
     )
 
 
+SCENE_MODES = (
+    "default",
+    "opacity_extreme",
+    "scale_tiny",
+    "scale_huge",
+    "anisotropic",
+    "wide_spread",
+    "far_clipped",
+    "single",
+)
+
+
+def sample_scene(
+    mode: str,
+    n: int,
+    generator: Optional[torch.Generator] = None,
+    device=None,
+    dtype=torch.float32,
+    **kwargs,
+) -> GaussianScene:
+    """`sample_gaussians` with a stress mode applied.
+
+    - default: unchanged.
+    - opacity_extreme: opacities drawn from {0, 1e-4, 0.999, 1}.
+    - scale_tiny / scale_huge: scales in [1e-4, 1e-3] / [0.5, 2.0].
+    - anisotropic: one random axis per Gaussian shrunk 1000x (needles/discs).
+    - wide_spread: means in a radius-8 ball, so many Gaussians fall behind the
+      camera, outside the frustum, or inside the near plane.
+    - far_clipped: radius-150 ball with large scales; most lie beyond far_plane.
+    - single: N = 1.
+
+    `kwargs` are the default-mode sampling arguments; a mode's own overrides win.
+    """
+    if mode not in SCENE_MODES:
+        raise ValueError(f"unknown scene mode: {mode}")
+
+    overrides = {
+        "scale_tiny": {"scale_range": (1e-4, 1e-3)},
+        "scale_huge": {"scale_range": (0.5, 2.0)},
+        "wide_spread": {"mean_radius": 8.0},
+        "far_clipped": {"mean_radius": 150.0, "scale_range": (1.0, 3.0)},
+    }.get(mode, {})
+    if mode == "single":
+        n = 1
+
+    scene = sample_gaussians(
+        n, generator=generator, device=device, dtype=dtype, **{**kwargs, **overrides}
+    )
+
+    if mode == "opacity_extreme":
+        choices = torch.tensor([0.0, 1e-4, 0.999, 1.0], dtype=dtype)
+        idx = torch.randint(0, len(choices), (n,), generator=generator)
+        scene.opacities = choices[idx].to(device=device)
+    elif mode == "anisotropic":
+        axis = torch.randint(0, 3, (n,), generator=generator)
+        factor = torch.ones(n, 3, dtype=dtype)
+        factor[torch.arange(n), axis] = 1e-3
+        scene.scales = scene.scales * factor.to(device=device)
+
+    return scene
+
+
 def look_at_viewmat(eye: Tensor, target: Tensor, up: Tensor) -> Tensor:
     """World-to-camera 4x4 matrix for a camera at `eye` looking at `target`.
 
@@ -193,8 +253,7 @@ def sample_camera(
     `dist_range` and `fov_deg` should be chosen so that a scene whose Gaussians
     lie within `mean_radius` of the origin comfortably fits inside the frustum,
     e.g. dist=2.5, fov=60deg gives a half-width of ~1.44 at the origin's depth
-    plane, versus a scene radius of 0.6 -- see scripts/selfcheck_geometry.py for
-    a numeric check of this margin.
+    plane, versus a scene radius of 0.6.
     """
     dlo, dhi = dist_range
     dist = dlo + (dhi - dlo) * torch.rand((), generator=generator).item()

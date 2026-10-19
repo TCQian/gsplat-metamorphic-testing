@@ -9,4 +9,4 @@ source ~/.bashrc
 conda activate gsplat
 
 pip install -r requirements.txt
-python gsplat_mt/run_preliminary.py --n-scenes 20 --out results/preliminary_results.csv
+python gsplat_mt/run_preliminary.py --n-scenes 20 --out results/refined_results.csv

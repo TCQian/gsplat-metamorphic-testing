@@ -1,14 +1,11 @@
-"""Preliminary-study runner (main.tex, Section "Preliminary Study").
+"""Runs MR1/MR2/MR3 over random Gaussian scenes in each stress mode.
 
-Generates a small set of random Gaussian scenes, runs MR1/MR2/MR3 on each,
-and writes one CSV row per scene with the recorded scene properties (number
-of Gaussians, scale, opacity, depth, overlap, number of cameras) and the
-D_max/D_MAE of each metamorphic relation, plus a text summary.
-
-Must be run on a CUDA-capable machine -- see requirements.txt / README.md.
+Writes one CSV row per scene (scene mode, properties, D_max/D_MAE and a
+pass/violation/crash verdict per relation) plus a JSON summary of per-mode
+verdict counts. Requires a CUDA GPU; see README.md.
 
 Usage:
-    python -m gsplat_mt.run_preliminary --n-scenes 20 --out results/preliminary.csv
+    python gsplat_mt/run_preliminary.py --n-scenes 20 --out results/refined_results.csv
 """
 
 from __future__ import annotations
@@ -22,11 +19,12 @@ from pathlib import Path
 from typing import Dict, List
 
 import torch
+from metrics import TOLERANCES, verdict
 from mr1_packed import run_mr1
 from mr2_batch import run_mr2
 from mr3_covariance import run_mr3
 from repro_issues import repro_issue_630, repro_issue_764
-from scene import GaussianScene, sample_cameras, sample_gaussians
+from scene import SCENE_MODES, GaussianScene, sample_cameras, sample_gaussians, sample_scene
 
 
 def scene_properties(scene: GaussianScene, cameras) -> Dict[str, float]:
@@ -83,6 +81,7 @@ def flatten_diff(prefix: str, diff, error: str = None) -> Dict[str, object]:
 
 def run_one_scene(
     scene_idx: int,
+    mode: str,
     args: argparse.Namespace,
     device: str,
 ) -> Dict[str, object]:
@@ -93,7 +92,8 @@ def run_one_scene(
         args.n_gaussians_min, args.n_gaussians_max + 1, (1,), generator=generator
     ).item()
 
-    scene = sample_gaussians(
+    scene = sample_scene(
+        mode,
         n_gaussians,
         mean_radius=args.mean_radius,
         scale_range=(args.scale_min, args.scale_max),
@@ -113,12 +113,13 @@ def run_one_scene(
         )
     ]
 
-    row: Dict[str, object] = {"scene_idx": scene_idx, "seed": seed}
+    row: Dict[str, object] = {"scene_idx": scene_idx, "seed": seed, "mode": mode}
     row.update(scene_properties(scene, cameras))
 
     mr1 = run_mr1(scene, cameras[0])
     row.update(flatten_diff("mr1_rgb", mr1.rgb, mr1.error))
     row.update(flatten_diff("mr1_alpha", mr1.alpha, mr1.error))
+    row["mr1_verdict"] = verdict((mr1.rgb, mr1.alpha), mr1.error, TOLERANCES["mr1"])
 
     if args.mr1_backgrounds:
         mr1_bg = run_mr1(scene, cameras[0], use_backgrounds=True)
@@ -135,12 +136,20 @@ def run_one_scene(
             mr2.per_camera
         )
         row["mr2_error"] = None
+    row["mr2_verdict"] = verdict(tuple(mr2.per_camera), mr2.error, TOLERANCES["mr2"])
 
     mr3_correct = run_mr3(scene, cameras[0], mode="correct")
     row.update(flatten_diff("mr3_correct_rgb", mr3_correct.rgb, mr3_correct.error))
+    row["mr3_correct_verdict"] = verdict(
+        (mr3_correct.rgb, mr3_correct.alpha), mr3_correct.error, TOLERANCES["mr3"]
+    )
 
     mr3_bug = run_mr3(scene, cameras[0], mode="xyzw_bug")
     row.update(flatten_diff("mr3_xyzwbug_rgb", mr3_bug.rgb, mr3_bug.error))
+    # Fault injection: "violation" here means the injected bug was detected.
+    row["mr3_xyzwbug_verdict"] = verdict(
+        (mr3_bug.rgb, mr3_bug.alpha), mr3_bug.error, TOLERANCES["mr3"]
+    )
 
     return row
 
@@ -162,9 +171,30 @@ def summarize(
     return summary
 
 
+VERDICT_KEYS = ["mr1_verdict", "mr2_verdict", "mr3_correct_verdict", "mr3_xyzwbug_verdict"]
+
+
+def count_verdicts(rows: List[Dict[str, object]]) -> Dict[str, Dict[str, Dict[str, int]]]:
+    """{mode: {verdict_key: {verdict: count}}}; scenes that crashed outright count as 'fatal'."""
+    counts: Dict[str, Dict[str, Dict[str, int]]] = {}
+    for r in rows:
+        per_mode = counts.setdefault(r["mode"], {k: {} for k in VERDICT_KEYS})
+        for k in VERDICT_KEYS:
+            v = r.get(k, "fatal")
+            per_mode[k][v] = per_mode[k].get(v, 0) + 1
+    return counts
+
+
 def build_argparser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--n-scenes", type=int, default=20)
+    p.add_argument("--n-scenes", type=int, default=20, help="scenes per mode")
+    p.add_argument(
+        "--modes",
+        nargs="+",
+        default=list(SCENE_MODES),
+        choices=SCENE_MODES,
+        help="scene generator modes to run",
+    )
     p.add_argument("--n-gaussians-min", type=int, default=20)
     p.add_argument("--n-gaussians-max", type=int, default=200)
     p.add_argument("--width", type=int, default=64)
@@ -180,7 +210,7 @@ def build_argparser() -> argparse.ArgumentParser:
     p.add_argument("--fov-deg", type=float, default=60.0)
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--device", type=str, default="cuda")
-    p.add_argument("--out", type=str, default="results/preliminary_results.csv")
+    p.add_argument("--out", type=str, default="results/refined_results.csv")
     p.add_argument(
         "--mr1-backgrounds",
         action="store_true",
@@ -201,8 +231,7 @@ def main(argv=None) -> int:
         print(
             "ERROR: CUDA is not available in this environment, but gsplat's "
             "rasterization kernels require an NVIDIA GPU (no CPU/MPS backend). "
-            "Run this on a CUDA-capable machine, e.g. a Google Colab GPU runtime. "
-            "See README.md.",
+            "Run this on a CUDA-capable machine. See README.md.",
             file=sys.stderr,
         )
         return 1
@@ -234,19 +263,23 @@ def main(argv=None) -> int:
                 indent=2,
             )
 
-    print(f"Running {args.n_scenes} scenes...")
+    total = args.n_scenes * len(args.modes)
+    print(f"Running {total} scenes ({args.n_scenes} per mode: {', '.join(args.modes)})...")
     rows = []
-    for i in range(args.n_scenes):
-        try:
-            row = run_one_scene(i, args, device)
-        except Exception as e:  # noqa: BLE001 - keep going, record the failure
-            row = {
-                "scene_idx": i,
-                "seed": args.seed + i,
-                "fatal_error": f"{type(e).__name__}: {e}",
-            }
-        rows.append(row)
-        print(f"  scene {i+1}/{args.n_scenes} done")
+    for m, mode in enumerate(args.modes):
+        for j in range(args.n_scenes):
+            i = m * args.n_scenes + j
+            try:
+                row = run_one_scene(i, mode, args, device)
+            except Exception as e:  # noqa: BLE001 - keep going, record the failure
+                row = {
+                    "scene_idx": i,
+                    "seed": args.seed + i,
+                    "mode": mode,
+                    "fatal_error": f"{type(e).__name__}: {e}",
+                }
+            rows.append(row)
+            print(f"  scene {i+1}/{total} [{mode}] done")
 
     fieldnames = sorted(set(itertools.chain.from_iterable(r.keys() for r in rows)))
     with open(out_path, "w", newline="") as f:
@@ -272,6 +305,13 @@ def main(argv=None) -> int:
             f"  {key}: min={stats['min']:.3e} mean={stats['mean']:.3e} max={stats['max']:.3e} n={stats['n']}"
         )
 
+    verdicts = count_verdicts(rows)
+    print("\nVerdicts per mode (mr3_xyzwbug 'violation' = injected bug detected):")
+    for mode, per_key in verdicts.items():
+        print(f"  {mode}")
+        for k, c in per_key.items():
+            print(f"    {k}: {c}")
+
     n_errors = sum(
         1
         for r in rows
@@ -280,7 +320,7 @@ def main(argv=None) -> int:
     print(f"\nScenes with at least one MR error/crash: {n_errors}/{len(rows)}")
 
     with open(out_path.with_name(out_path.stem + "_summary.json"), "w") as f:
-        json.dump(summary, f, indent=2)
+        json.dump({"stats": summary, "verdicts": verdicts}, f, indent=2)
 
     return 0
 
