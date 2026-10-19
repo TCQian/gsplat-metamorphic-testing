@@ -1,4 +1,4 @@
-"""Runs MR1/MR2/MR3 over random Gaussian scenes in each stress mode.
+"""Runs MR1-MR5 over random Gaussian scenes in each stress mode.
 
 Writes one CSV row per scene (scene mode, properties, D_max/D_MAE and a
 pass/violation/crash verdict per relation) plus a JSON summary of per-mode
@@ -19,11 +19,14 @@ import time
 from pathlib import Path
 from typing import Dict, List
 
+import gsplat
 import torch
 from metrics import TOLERANCES, verdict
 from mr1_packed import run_mr1
 from mr2_batch import run_mr2
 from mr3_covariance import run_mr3
+from mr4_world_scale import run_mr4
+from mr5_permutation import run_mr5
 from repro_issues import repro_issue_630, repro_issue_764
 from scene import SCENE_MODES, GaussianScene, sample_cameras, sample_gaussians, sample_scene
 
@@ -64,6 +67,57 @@ def scene_properties(scene: GaussianScene, cameras) -> Dict[str, float]:
         "min_depth": min(depths),
         "overlap_frac": overlap_frac,
     }
+
+
+def render_stats(scene: GaussianScene, cameras, near_plane=0.01, far_plane=100.0) -> Dict[str, object]:
+    """Visibility of the scene across `cameras`, to flag renders that draw nothing.
+
+    Coverage comes from the rendered alpha. Visible-Gaussian counts come from
+    gsplat's own culling (`meta["radii"] > 0`) and are None if that is unavailable.
+    """
+    try:
+        _, alpha, meta = gsplat.rasterization(
+            means=scene.means,
+            quats=scene.quats,
+            scales=scene.scales,
+            opacities=scene.opacities,
+            colors=scene.colors,
+            viewmats=torch.stack([c.viewmat for c in cameras]),
+            Ks=torch.stack([c.K for c in cameras]),
+            width=cameras[0].width,
+            height=cameras[0].height,
+            near_plane=near_plane,
+            far_plane=far_plane,
+            sh_degree=None,
+            packed=False,
+        )
+    except Exception as e:  # noqa: BLE001 - the MRs will surface the same crash
+        return {"row": {"render_stats_error": f"{type(e).__name__}: {e}"}}
+
+    coverage = (alpha > 0).float().flatten(1).mean(dim=1)  # [C]
+    row: Dict[str, object] = {
+        "coverage_cam0": coverage[0].item(),
+        "coverage_mean": coverage.mean().item(),
+        "n_empty_cams": int((coverage == 0).sum().item()),
+        "n_visible_cam0": None,
+        "n_visible_any": None,
+    }
+    try:
+        radii = meta["radii"]
+        visible = (radii > 0).all(dim=-1) if radii.dim() == 3 else radii > 0  # [C,N]
+        row["n_visible_cam0"] = int(visible[0].sum().item())
+        row["n_visible_any"] = int(visible.any(dim=0).sum().item())
+    except Exception:  # noqa: BLE001 - radii layout differs; coverage still valid
+        pass
+    return {"row": row, "cam0_empty": coverage[0].item() == 0, "all_empty": bool((coverage == 0).all())}
+
+
+def flag_vacuous(row: Dict[str, object], keys, empty: bool) -> None:
+    """A 'pass' on a render that draws nothing proves nothing."""
+    if empty:
+        for k in keys:
+            if row.get(k) == "pass":
+                row[k] = "vacuous_pass"
 
 
 def sync(device: str) -> None:
@@ -121,6 +175,8 @@ def run_one_scene(
 
     row: Dict[str, object] = {"scene_idx": scene_idx, "seed": seed, "mode": mode}
     row.update(scene_properties(scene, cameras))
+    stats = render_stats(scene, cameras)
+    row.update(stats["row"])
 
     mr1 = run_mr1(scene, cameras[0])
     row.update(flatten_diff("mr1_rgb", mr1.rgb, mr1.error))
@@ -157,6 +213,41 @@ def run_one_scene(
         (mr3_bug.rgb, mr3_bug.alpha), mr3_bug.error, TOLERANCES["mr3"]
     )
 
+    # MR4: sweep world-scale factors; record the worst one.
+    mr4_runs = [(k, run_mr4(scene, cameras[0], k)) for k in args.world_scales]
+    mr4_diffs = tuple(d for _, r in mr4_runs for d in (r.rgb, r.alpha))
+    mr4_error = next((r.error for _, r in mr4_runs if r.error), None)
+    ok = [(k, r) for k, r in mr4_runs if r.rgb is not None]
+    worst_k, worst = max(ok, key=lambda kr: kr[1].rgb.d_max) if ok else (None, None)
+    row.update(flatten_diff("mr4_rgb", worst.rgb if worst else None, mr4_error))
+    row["mr4_worst_k"] = worst_k
+    row["mr4_verdict"] = verdict(mr4_diffs, mr4_error, TOLERANCES["mr4"])
+
+    # Fault injection: camera translation not scaled, at the largest factor.
+    mr4_bug = run_mr4(scene, cameras[0], max(args.world_scales), mode="no_translation")
+    row.update(flatten_diff("mr4_bug_rgb", mr4_bug.rgb, mr4_bug.error))
+    row["mr4_bug_verdict"] = verdict(
+        (mr4_bug.rgb, mr4_bug.alpha), mr4_bug.error, TOLERANCES["mr4"]
+    )
+
+    mr5 = run_mr5(scene, cameras[0], seed)
+    row.update(flatten_diff("mr5_rgb", mr5.rgb, mr5.error))
+    row["mr5_depth_tie"] = mr5.depth_tie
+    row["mr5_verdict"] = verdict((mr5.rgb, mr5.alpha), mr5.error, TOLERANCES["mr5"])
+    if mr5.depth_tie and row["mr5_verdict"] == "violation":
+        row["mr5_verdict"] = "tie_ambiguous"  # compositing order of tied depths is ambiguous
+
+    # Fault injection: colors not permuted along with the other attributes.
+    mr5_bug = run_mr5(scene, cameras[0], seed, mode="misaligned")
+    row.update(flatten_diff("mr5_bug_rgb", mr5_bug.rgb, mr5_bug.error))
+    row["mr5_bug_verdict"] = verdict(
+        (mr5_bug.rgb, mr5_bug.alpha), mr5_bug.error, TOLERANCES["mr5"]
+    )
+
+    # All relations except MR2 render cameras[0] only; MR2 uses every camera.
+    flag_vacuous(row, [k for k in VERDICT_KEYS if k != "mr2_verdict"], stats.get("cam0_empty", False))
+    flag_vacuous(row, ["mr2_verdict"], stats.get("all_empty", False))
+
     return row
 
 
@@ -177,7 +268,16 @@ def summarize(
     return summary
 
 
-VERDICT_KEYS = ["mr1_verdict", "mr2_verdict", "mr3_correct_verdict", "mr3_xyzwbug_verdict"]
+VERDICT_KEYS = [
+    "mr1_verdict",
+    "mr2_verdict",
+    "mr3_correct_verdict",
+    "mr3_xyzwbug_verdict",
+    "mr4_verdict",
+    "mr4_bug_verdict",
+    "mr5_verdict",
+    "mr5_bug_verdict",
+]
 
 
 def count_verdicts(rows: List[Dict[str, object]]) -> Dict[str, Dict[str, Dict[str, int]]]:
@@ -214,6 +314,13 @@ def build_argparser() -> argparse.ArgumentParser:
     p.add_argument("--dist-min", type=float, default=2.5)
     p.add_argument("--dist-max", type=float, default=4.0)
     p.add_argument("--fov-deg", type=float, default=60.0)
+    p.add_argument(
+        "--world-scales",
+        type=float,
+        nargs="+",
+        default=[0.01, 0.25, 4.0, 100.0],
+        help="MR4 world-scale factors k",
+    )
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--device", type=str, default="cuda")
     p.add_argument("--out", type=str, default="results/refined_results.csv")
@@ -307,6 +414,12 @@ def main(argv=None) -> int:
         "mr3_correct_rgb_d_mae",
         "mr3_xyzwbug_rgb_d_max",
         "mr3_xyzwbug_rgb_d_mae",
+        "mr4_rgb_d_max",
+        "mr4_rgb_d_mae",
+        "mr4_bug_rgb_d_max",
+        "mr5_rgb_d_max",
+        "mr5_rgb_d_mae",
+        "mr5_bug_rgb_d_max",
         "time_s",
     ]
     summary = summarize(rows, numeric_keys)
@@ -317,7 +430,7 @@ def main(argv=None) -> int:
         )
 
     verdicts = count_verdicts(rows)
-    print("\nVerdicts per mode (mr3_xyzwbug 'violation' = injected bug detected):")
+    print("\nVerdicts per mode (*xyzwbug / *_bug 'violation' = injected bug detected):")
     for mode, per_key in verdicts.items():
         print(f"  {mode}")
         for k, c in per_key.items():

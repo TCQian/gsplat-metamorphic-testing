@@ -1,9 +1,10 @@
 # gsplat Metamorphic Testing
 
 Metamorphic testing framework for `gsplat`'s forward RGB rasterizer: a
-synthetic Gaussian scene generator (default plus edge-case modes) and three
+synthetic Gaussian scene generator (default plus edge-case modes) and five
 metamorphic relations (packed/unpacked, batched/individual cameras, covariance
-vs scale+quaternion), each judged pass/violation/crash against a tolerance. Requires an NVIDIA GPU as gsplat's rasterizer is a
+vs scale+quaternion, uniform world scale, Gaussian permutation), each judged
+pass/violation/crash against a tolerance. Requires an NVIDIA GPU as gsplat's rasterizer is a
 CUDA-only extension.
 
 ## Setup
@@ -24,6 +25,7 @@ Useful flags (`--help` for the full list):
 
 - `--n-scenes`: scenes per mode
 - `--modes`: subset of `default opacity_extreme scale_tiny scale_huge anisotropic wide_spread far_clipped single`
+- `--world-scales`: MR4 scale factors k (default `0.01 0.25 4 100`)
 - `--n-gaussians-min/max`, `--width/--height`, `--n-cameras`
 - `--mr1-backgrounds`: also run MR1 with a background color set, to probe gsplat issue [#764](https://github.com/nerfstudio-project/gsplat/issues/764)
 - `--skip-repro`: skip the standalone issue #764 / [#630](https://github.com/nerfstudio-project/gsplat/issues/630) reproduction checks
@@ -31,7 +33,11 @@ Useful flags (`--help` for the full list):
 Outputs (next to `--out`): `*_results.csv` (per-scene MR results), `*_repro.json`
 (issue reproduction outcomes), `*_summary.json` (aggregate D_max/D_MAE stats and per-mode verdict counts).
 
-Tolerances (max abs pixel difference) are set in `gsplat_mt/metrics.py`: 1e-4 for MR1, exact equality for MR2 and MR3.
+Tolerances (max abs pixel difference) are set in `gsplat_mt/metrics.py`: 1e-4 for MR1 and MR4, exact equality for MR2, MR3 and MR5. MR4/MR5 values are initial. MR5 differences in scenes with near-equal depths are reported as `tie_ambiguous`, not `violation`.
+
+Each scene also records visibility: `coverage_cam0`/`coverage_mean` (fraction of pixels with alpha > 0), `n_empty_cams`, and `n_visible_cam0`/`n_visible_any` (Gaussians surviving gsplat's culling). A `pass` on a render that draws nothing (camera 0 empty; for MR2, every camera empty) is reported as `vacuous_pass`.
+
+Each of MR3, MR4 and MR5 also runs a fault-injected variant (`mr3_xyzwbug`, `mr4_bug`, `mr5_bug`), where `violation` means the injected bug was detected.
 
 ## SLURM (SoC cluster)
 
@@ -46,6 +52,6 @@ dependencies, and runs all scene modes with default settings.
 
 - `gsplat_mt/scene.py` -- scene/camera generator and stress modes
 - `gsplat_mt/metrics.py` -- D_max/D_MAE oracle, tolerances, verdicts
-- `gsplat_mt/mr1_packed.py`, `mr2_batch.py`, `mr3_covariance.py` -- the three MRs
+- `gsplat_mt/mr1_packed.py`, `mr2_batch.py`, `mr3_covariance.py`, `mr4_world_scale.py`, `mr5_permutation.py` -- the five MRs
 - `gsplat_mt/repro_issues.py` -- reproductions of gsplat issues #764 and #630
 - `gsplat_mt/run_preliminary.py` -- CLI runner

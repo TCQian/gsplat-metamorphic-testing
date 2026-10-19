@@ -15,8 +15,10 @@ from torch import Tensor
 
 
 # Max absolute pixel difference tolerated per relation. MR1 packed/unpacked
-# showed ~1e-7 float noise; MR2 and MR3 (correct) were bit-identical.
-TOLERANCES = {"mr1": 1e-4, "mr2": 0.0, "mr3": 0.0}
+# showed ~1e-7 float noise; MR2 and MR3 (correct) were bit-identical. MR4
+# rescales every float, so it gets MR1's tolerance; MR5 should be exact away
+# from depth ties. MR4/MR5 values are initial and need calibrating on a run.
+TOLERANCES = {"mr1": 1e-4, "mr2": 0.0, "mr3": 0.0, "mr4": 1e-4, "mr5": 0.0}
 
 
 @dataclass
