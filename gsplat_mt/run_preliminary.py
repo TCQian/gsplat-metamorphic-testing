@@ -15,6 +15,7 @@ import csv
 import itertools
 import json
 import sys
+import time
 from pathlib import Path
 from typing import Dict, List
 
@@ -63,6 +64,11 @@ def scene_properties(scene: GaussianScene, cameras) -> Dict[str, float]:
         "min_depth": min(depths),
         "overlap_frac": overlap_frac,
     }
+
+
+def sync(device: str) -> None:
+    if device.startswith("cuda"):
+        torch.cuda.synchronize()
 
 
 def flatten_diff(prefix: str, diff, error: str = None) -> Dict[str, object]:
@@ -269,6 +275,8 @@ def main(argv=None) -> int:
     for m, mode in enumerate(args.modes):
         for j in range(args.n_scenes):
             i = m * args.n_scenes + j
+            sync(device)
+            t0 = time.perf_counter()
             try:
                 row = run_one_scene(i, mode, args, device)
             except Exception as e:  # noqa: BLE001 - keep going, record the failure
@@ -278,8 +286,10 @@ def main(argv=None) -> int:
                     "mode": mode,
                     "fatal_error": f"{type(e).__name__}: {e}",
                 }
+            sync(device)
+            row["time_s"] = time.perf_counter() - t0
             rows.append(row)
-            print(f"  scene {i+1}/{total} [{mode}] done")
+            print(f"  scene {i+1}/{total} [{mode}] done in {row['time_s']:.2f}s")
 
     fieldnames = sorted(set(itertools.chain.from_iterable(r.keys() for r in rows)))
     with open(out_path, "w", newline="") as f:
@@ -297,6 +307,7 @@ def main(argv=None) -> int:
         "mr3_correct_rgb_d_mae",
         "mr3_xyzwbug_rgb_d_max",
         "mr3_xyzwbug_rgb_d_mae",
+        "time_s",
     ]
     summary = summarize(rows, numeric_keys)
     print("\nSummary (across scenes where the relation ran without error):")
