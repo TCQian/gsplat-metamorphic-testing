@@ -36,6 +36,10 @@ The runner sweeps `--world-scales` (default `0.01 0.25 4 100`) and records the w
 
 A `pass` on a render that draws nothing becomes `vacuous_pass`: camera 0 empty for MR1, MR3, MR4, MR5 (and their fault-injection rows); every camera empty for MR2.
 
+### Generator
+
+`scale_huge` scales shrunk from [0.5, 2.0] to [0.15, 0.5]; at the old range 18/20 scenes were over 95% opaque (see Notes).
+
 ### Runner
 
 - New CSV columns for MR4/MR5 and the visibility stats; new verdict keys `mr4_verdict`, `mr4_bug_verdict`, `mr5_verdict`, `mr5_bug_verdict`.
@@ -62,5 +66,6 @@ A `pass` on a render that draws nothing becomes `vacuous_pass`: camera 0 empty f
 
 - `far_clipped` scene 138 (68 Gaussians) rendered nothing. Its MR results are `vacuous_pass`. It reports `n_visible_cam0 = 1`, so the radii-based count does not guarantee drawn pixels; coverage is what the verdicts use.
 - `far_clipped` has a median of 6 visible Gaussians out of 132; `wide_spread` 17.5 out of 85.
-- `scale_huge` has `coverage_cam0 = 1.0` in every scene (alpha > 0 on every pixel). How opaque those pixels are was not recorded in that run; `opaque_frac_*` was added afterwards and has not been run yet.
+- With the old `scale_huge` range [0.5, 2.0], `coverage_cam0 = 1.0` in every scene and `opaque_frac_cam0` had median 1.000 (18/20 scenes > 0.95), so hidden Gaussians could not affect pixels. The new range has not been run yet.
+- In the other modes `opaque_frac_cam0` is at most 0.051 and median `coverage_cam0` is 0.012-0.156, so most pixels are background.
 - MR5's fault injection cannot fire for `single` (N = 1), since the permutation is the identity.

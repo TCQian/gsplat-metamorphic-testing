@@ -153,7 +153,7 @@ def sample_scene(
 
     - default: unchanged.
     - opacity_extreme: opacities drawn from {0, 1e-4, 0.999, 1}.
-    - scale_tiny / scale_huge: scales in [1e-4, 1e-3] / [0.5, 2.0].
+    - scale_tiny / scale_huge: scales in [1e-4, 1e-3] / [0.15, 0.5].
     - anisotropic: one random axis per Gaussian shrunk 1000x (needles/discs).
     - wide_spread: means in a radius-8 ball, so many Gaussians fall behind the
       camera, outside the frustum, or inside the near plane.
@@ -167,7 +167,7 @@ def sample_scene(
 
     overrides = {
         "scale_tiny": {"scale_range": (1e-4, 1e-3)},
-        "scale_huge": {"scale_range": (0.5, 2.0)},
+        "scale_huge": {"scale_range": (0.15, 0.5)},
         "wide_spread": {"mean_radius": 8.0},
         "far_clipped": {"mean_radius": 150.0, "scale_range": (1.0, 3.0)},
     }.get(mode, {})
