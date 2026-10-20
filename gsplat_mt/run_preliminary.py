@@ -72,7 +72,8 @@ def scene_properties(scene: GaussianScene, cameras) -> Dict[str, float]:
 def render_stats(scene: GaussianScene, cameras, near_plane=0.01, far_plane=100.0) -> Dict[str, object]:
     """Visibility of the scene across `cameras`, to flag renders that draw nothing.
 
-    Coverage comes from the rendered alpha. Visible-Gaussian counts come from
+    Coverage comes from the rendered alpha; `opaque_frac_*` (alpha > 0.99) shows
+    how much of the image is saturated, where hidden Gaussians cannot affect pixels. Visible-Gaussian counts come from
     gsplat's own culling (`meta["radii"] > 0`) and are None if that is unavailable.
     """
     try:
@@ -95,9 +96,12 @@ def render_stats(scene: GaussianScene, cameras, near_plane=0.01, far_plane=100.0
         return {"row": {"render_stats_error": f"{type(e).__name__}: {e}"}}
 
     coverage = (alpha > 0).float().flatten(1).mean(dim=1)  # [C]
+    opaque = (alpha > 0.99).float().flatten(1).mean(dim=1)  # [C]
     row: Dict[str, object] = {
         "coverage_cam0": coverage[0].item(),
         "coverage_mean": coverage.mean().item(),
+        "opaque_frac_cam0": opaque[0].item(),
+        "opaque_frac_mean": opaque.mean().item(),
         "n_empty_cams": int((coverage == 0).sum().item()),
         "n_visible_cam0": None,
         "n_visible_any": None,

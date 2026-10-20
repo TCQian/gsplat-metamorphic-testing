@@ -35,7 +35,7 @@ Outputs (next to `--out`): `*_results.csv` (per-scene MR results), `*_repro.json
 
 Tolerances (max abs pixel difference) are set in `gsplat_mt/metrics.py`: 1e-4 for MR1 and MR4, exact equality for MR2, MR3 and MR5. MR4/MR5 values are initial. MR5 differences in scenes with near-equal depths are reported as `tie_ambiguous`, not `violation`.
 
-Each scene also records visibility: `coverage_cam0`/`coverage_mean` (fraction of pixels with alpha > 0), `n_empty_cams`, and `n_visible_cam0`/`n_visible_any` (Gaussians surviving gsplat's culling). A `pass` on a render that draws nothing (camera 0 empty; for MR2, every camera empty) is reported as `vacuous_pass`.
+Each scene also records visibility: `coverage_cam0`/`coverage_mean` (fraction of pixels with alpha > 0), `opaque_frac_cam0`/`opaque_frac_mean` (alpha > 0.99), `n_empty_cams`, and `n_visible_cam0`/`n_visible_any` (Gaussians surviving gsplat's culling). A `pass` on a render that draws nothing (camera 0 empty; for MR2, every camera empty) is reported as `vacuous_pass`.
 
 Each of MR3, MR4 and MR5 also runs a fault-injected variant (`mr3_xyzwbug`, `mr4_bug`, `mr5_bug`), where `violation` means the injected bug was detected.
 
