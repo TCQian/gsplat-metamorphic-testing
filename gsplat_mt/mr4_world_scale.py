@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from typing import Literal, Optional
 
 import gsplat
-from metrics import ImageDiff, compare_images
+from metrics import TOLERANCES, ImageDiff, compare_images
 from scene import Camera, GaussianScene
 
 
@@ -74,5 +74,6 @@ def run_mr4(
         return MR4Result(rgb=None, alpha=None, error=f"{type(e).__name__}: {e}")
 
     return MR4Result(
-        rgb=compare_images(rgb_a, rgb_b), alpha=compare_images(alpha_a, alpha_b)
+        rgb=compare_images(rgb_a, rgb_b, TOLERANCES["mr4"]),
+        alpha=compare_images(alpha_a, alpha_b, TOLERANCES["mr4"]),
     )

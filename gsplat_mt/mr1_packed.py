@@ -14,7 +14,7 @@ from typing import Optional
 
 import gsplat
 import torch
-from metrics import ImageDiff, compare_images
+from metrics import TOLERANCES, ImageDiff, compare_images
 from scene import Camera, GaussianScene
 
 
@@ -62,5 +62,6 @@ def run_mr1(
         return MR1Result(rgb=None, alpha=None, error=f"{type(e).__name__}: {e}")
 
     return MR1Result(
-        rgb=compare_images(rgb_p, rgb_u), alpha=compare_images(alpha_p, alpha_u)
+        rgb=compare_images(rgb_p, rgb_u, TOLERANCES["mr1"]),
+        alpha=compare_images(alpha_p, alpha_u, TOLERANCES["mr1"]),
     )

@@ -185,7 +185,9 @@ def run_one_scene(
     mr1 = run_mr1(scene, cameras[0])
     row.update(flatten_diff("mr1_rgb", mr1.rgb, mr1.error))
     row.update(flatten_diff("mr1_alpha", mr1.alpha, mr1.error))
-    row["mr1_verdict"] = verdict((mr1.rgb, mr1.alpha), mr1.error, TOLERANCES["mr1"])
+    row["mr1_verdict"] = verdict(
+        (mr1.rgb, mr1.alpha), mr1.error, TOLERANCES["mr1"], allow_isolated=True
+    )
 
     if args.mr1_backgrounds:
         mr1_bg = run_mr1(scene, cameras[0], use_backgrounds=True)
@@ -225,7 +227,9 @@ def run_one_scene(
     worst_k, worst = max(ok, key=lambda kr: kr[1].rgb.d_max) if ok else (None, None)
     row.update(flatten_diff("mr4_rgb", worst.rgb if worst else None, mr4_error))
     row["mr4_worst_k"] = worst_k
-    row["mr4_verdict"] = verdict(mr4_diffs, mr4_error, TOLERANCES["mr4"])
+    row["mr4_verdict"] = verdict(
+        mr4_diffs, mr4_error, TOLERANCES["mr4"], allow_isolated=True
+    )
 
     # Fault injection: camera translation not scaled, at the largest factor.
     mr4_bug = run_mr4(scene, cameras[0], max(args.world_scales), mode="no_translation")

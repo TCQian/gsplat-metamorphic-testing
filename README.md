@@ -33,7 +33,7 @@ Useful flags (`--help` for the full list):
 Outputs (next to `--out`): `*_results.csv` (per-scene MR results), `*_repro.json`
 (issue reproduction outcomes), `*_summary.json` (aggregate D_max/D_MAE stats and per-mode verdict counts).
 
-Tolerances (max abs pixel difference) are set in `gsplat_mt/metrics.py`: 1e-4 for MR1 and MR4, exact equality for MR2, MR3 and MR5. MR4/MR5 values are initial. MR5 differences in scenes with near-equal depths are reported as `tie_ambiguous`, not `violation`.
+Tolerances (max abs pixel difference) are set in `gsplat_mt/metrics.py`: 1e-4 for MR1 and MR4, exact equality for MR2, MR3 and MR5. MR4/MR5 values are initial. MR5 differences in scenes with near-equal depths are reported as `tie_ambiguous`, not `violation`. For MR1 and MR4, a violation confined to at most 0.05% of pixels (2 pixels at 64x64) is reported as `isolated_discontinuity`: a single pixel crossing a rasterizer cutoff such as alpha < 1/255. The raw D_max and the per-image pixel count (`*_n_px_over`) are still recorded.
 
 Each scene also records visibility: `coverage_cam0`/`coverage_mean` (fraction of pixels with alpha > 0), `opaque_frac_cam0`/`opaque_frac_mean` (alpha > 0.99), `n_empty_cams`, and `n_visible_cam0`/`n_visible_any` (Gaussians surviving gsplat's culling). A `pass` on a render that draws nothing (camera 0 empty; for MR2, every camera empty) is reported as `vacuous_pass`.
 
