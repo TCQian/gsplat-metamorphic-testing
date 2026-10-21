@@ -48,25 +48,26 @@ A `pass` on a render that draws nothing becomes `vacuous_pass`: camera 0 empty f
 - `gsplat_mt/diagnose_mr4.py`: per-pixel MR4 diagnosis for one scene (`--scene-idx`, `--mode`), over exact (power-of-two) and inexact k.
 - `soc-cluster.sh` writes to `results/week8_results.csv`.
 
-## Results (job 979783: 8 modes x 20 scenes = 160; MR4 row updated from job 981409)
+## Results (8 modes x 20 scenes = 160)
 
-Job 979783 used the old `scale_huge` range; job 981409 reran with [0.15, 0.5]. Results were identical except for `scale_huge` and the MR1/MR4 noise maxima.
+Job 979783 used the old `scale_huge` range. Jobs 981409 and 985282 use [0.15, 0.5]; 985282 additionally has the `isolated_discontinuity` verdict. Same seeds and code otherwise, so 981409 and 985282 give identical D_max values.
 
-| Relation | Max D_max (979783 / 981409) | Verdict |
+| Relation | Max D_max (979783 / 985282) | Verdict (979783 / 985282) |
 | --- | --- | --- |
-| MR1 packed vs unpacked | 2.38e-07 / 2.98e-07 | pass |
-| MR2 batched vs individual | 0 / 0 | pass |
-| MR3 covariance (correct) | 0 / 0 | pass |
-| MR4 world scale | 4.68e-06 / 5.96e-04 | pass / 1 violation (scene 68) |
-| MR5 permutation | 0 / 0 | pass |
+| MR1 packed vs unpacked | 2.38e-07 / 2.98e-07 | pass / pass |
+| MR2 batched vs individual | 0 / 0 | pass / pass |
+| MR3 covariance (correct) | 0 / 0 | pass / pass |
+| MR4 world scale | 4.68e-06 / 5.96e-04 | pass / pass except `isolated_discontinuity` (scene 68) |
+| MR5 permutation | 0 / 0 | pass / pass |
 
 - Scenes with an MR error or crash: 0/160.
 - Fault injections: MR3 `xyzw_bug` (D_max up to 0.593), MR4 `no_translation` (up to 0.961) and MR5 `misaligned` (up to 0.922) were detected in every scene with a non-empty render.
 - MR4's worst case was always k=100 or k=0.01.
-- Job 981409: `scale_huge` scene 68 (188 Gaussians) violates MR4 at k=0.01: D_max 5.96e-04 (tolerance 1e-4) but D_mae 1.35e-07, i.e. a difference confined to very few pixel values. The next largest MR4 D_max in the run is 4.68e-06. `gsplat_mt/diagnose_mr4.py` (run on job 985185) shows the cause is a rasterizer threshold flip, not a scale-handling bug:
+- Job 981409 (before the isolated-pixel rule, reported as a violation): `scale_huge` scene 68 (188 Gaussians) exceeds the MR4 tolerance at k=0.01: D_max 5.96e-04 (tolerance 1e-4) but D_mae 1.35e-07, i.e. a difference confined to very few pixel values. The next largest MR4 D_max in the run is 4.68e-06. `gsplat_mt/diagnose_mr4.py` (run on job 985185) shows the cause is a rasterizer threshold flip, not a scale-handling bug:
   - Power-of-two k (1/128, 1/4, 4, 128) give D_max exactly 0 over all pixels; repeated renders are identical.
   - At k=0.01 about 3800 of 4096 pixels differ by ~1e-7 (float noise) and exactly one pixel, (y=19, x=17), differs by 5.96e-04. Its remaining transmittance (1-alpha) is 4.206e-3 vs 4.189e-3, a 0.4% ratio equal to (1 - 1/255)^-1, i.e. one Gaussian with alpha near 1/255 was skipped in one render and blended in the other.
   - gsplat 1.5.3 skips Gaussians with alpha < 1/255 (`ALPHA_THRESHOLD` in `cuda/include/Common.h`). Per-Gaussian alpha at that pixel was not logged, so this is strongly supported but not directly observed.
+  - Job 985282 with the isolated-pixel rule: scene 68 reports `mr4_verdict = isolated_discontinuity` (`mr4_rgb_n_px_over` = 1 of 4096, under the 2-pixel cutoff), with D_max still recorded as 5.96e-04. It is the only scene in the run with a nonzero `mr4_rgb_n_px_over`; `mr1_rgb_n_px_over` and `mr1_alpha_n_px_over` are 0 in all 160 scenes. `scale_huge` MR4: 19 pass, 1 `isolated_discontinuity`.
 - MR5 depth ties: 3 scenes, none produced a `tie_ambiguous`.
 - Issues #764 and #630 reproduced again.
 - Per-scene time: mean 15 ms, max 0.23 s (CUDA extension already compiled).

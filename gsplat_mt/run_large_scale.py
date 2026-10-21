@@ -156,6 +156,33 @@ def detection_rates(rows: List[Dict[str, object]]) -> Dict[str, Dict[str, int]]:
     return rates
 
 
+def timing_summary(rows: List[Dict[str, object]], wall_s: float) -> Dict[str, object]:
+    """Wall-clock plus per-scene time. Scene 0 is reported separately: it includes the one-time CUDA JIT compile."""
+    rest = [r for r in rows[1:] if r.get("time_s") is not None]
+
+    def pct(v: List[float], q: float) -> float:
+        return sorted(v)[int(q * (len(v) - 1))]
+
+    out: Dict[str, object] = {
+        "total_wall_s": wall_s,
+        "first_scene_s": rows[0]["time_s"] if rows else None,
+    }
+    if rest:
+        t = [r["time_s"] for r in rest]
+        out.update(
+            rest_sum_s=sum(t),
+            rest_median_s=pct(t, 0.5),
+            rest_p95_s=pct(t, 0.95),
+            rest_p99_s=pct(t, 0.99),
+            rest_max_s=max(t),
+            per_mode_median_s={
+                m: pct([r["time_s"] for r in rest if r["mode"] == m], 0.5)
+                for m in sorted({r["mode"] for r in rest})
+            },
+        )
+    return out
+
+
 def is_finding(row: Dict[str, object]) -> bool:
     return "fatal_error" in row or any(
         row.get(k) not in UNREMARKABLE for k in MR_KEYS if k in row
@@ -193,6 +220,7 @@ def main(argv=None) -> int:
     print(f"Running {total} randomized scenes...")
     rows: List[Dict[str, object]] = []
     aborted = None
+    run_start = time.perf_counter()
     with open(jsonl_path, "w") as jf:
         for n_done, i in enumerate(indices, 1):
             cfg = sample_config(i, args)
@@ -219,8 +247,11 @@ def main(argv=None) -> int:
             rows.append(row)
             jf.write(json.dumps(row) + "\n")
             jf.flush()
-            if n_done % 100 == 0 or n_done == total:
-                print(f"  {n_done}/{total} done")
+            if n_done == 1 or n_done % 100 == 0 or n_done == total:
+                print(
+                    f"  {n_done}/{total} done "
+                    f"({time.perf_counter() - run_start:.0f}s elapsed, last scene {row['time_s']:.2f}s)"
+                )
             if aborted:
                 print(f"ABORTING: CUDA error, later scenes would be invalid ({aborted})", file=sys.stderr)
                 break
@@ -250,6 +281,7 @@ def main(argv=None) -> int:
         "n_scenes": len(rows),
         "aborted": aborted,
         "n_findings": len(findings),
+        "timing": timing_summary(rows, time.perf_counter() - run_start),
         "stats": summarize(rows, numeric_keys),
         "verdicts": count_verdicts(rows),
         "fault_injection": detection_rates(rows),
@@ -257,6 +289,13 @@ def main(argv=None) -> int:
     }
     with open(out.with_name(out.stem + "_summary.json"), "w") as f:
         json.dump(summary, f, indent=2)
+
+    tm = summary["timing"]
+    print(f"\nTiming: total {tm['total_wall_s']:.0f}s; first scene {tm['first_scene_s']:.1f}s (includes CUDA JIT compile)")
+    if "rest_median_s" in tm:
+        print(
+            f"  other scenes: median {tm['rest_median_s']:.3f}s, p99 {tm['rest_p99_s']:.3f}s, max {tm['rest_max_s']:.3f}s"
+        )
 
     print("\nMR1-MR5 verdicts over all scenes:")
     for k in MR_KEYS:

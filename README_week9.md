@@ -29,10 +29,10 @@ A mode's own overrides win over the sampled values they touch (for example `wide
 
 ### Outputs (next to `--out`)
 
-- `*.csv`: all scenes; sampled configuration in `cfg_*` columns (`cfg_pixels` = width x height).
+- `*.csv`: all scenes; sampled configuration in `cfg_*` columns (`cfg_pixels` = width x height); `time_s` is wall-clock seconds per scene (CUDA-synchronized). The progress log prints elapsed and last-scene time.
 - `*.jsonl`: one row per scene, flushed as it goes, so a timeout keeps partial results.
 - `*_findings.csv`: scenes with a crash, or any MR1-MR5 verdict other than `pass` / `vacuous_pass` (violation, `isolated_discontinuity`, `tie_ambiguous`, `invalid_output`).
-- `*_summary.json`: `n_scenes`, `aborted`, `n_findings`, `stats` (D_max min/mean/max and `time_s`), `verdicts` per mode, `fault_injection` outcome counts, and `spearman` (rank correlation of `n_gaussians`, `n_cameras`, `mean_scale`, `mean_opacity`, `mean_depth`, `overlap_frac`, `coverage_cam0`, `opaque_frac_cam0`, `cfg_pixels` with `mr1_rgb_d_max` and `mr4_rgb_d_max`; `null` where a column is constant or has fewer than 10 usable scenes).
+- `*_summary.json`: `n_scenes`, `aborted`, `n_findings`, `timing` (total wall-clock, first-scene time reported separately because it includes the CUDA JIT compile, then median/p95/p99/max and per-mode median for the remaining scenes), `stats` (D_max min/mean/max and `time_s`), `verdicts` per mode, `fault_injection` outcome counts, and `spearman` (rank correlation of `n_gaussians`, `n_cameras`, `mean_scale`, `mean_opacity`, `mean_depth`, `overlap_frac`, `coverage_cam0`, `opaque_frac_cam0`, `cfg_pixels` with `mr1_rgb_d_max` and `mr4_rgb_d_max`; `null` where a column is constant or has fewer than 10 usable scenes).
 
 ### Failure handling
 
