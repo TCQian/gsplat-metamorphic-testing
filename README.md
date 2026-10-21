@@ -39,14 +39,23 @@ Each scene also records visibility: `coverage_cam0`/`coverage_mean` (fraction of
 
 Each of MR3, MR4 and MR5 also runs a fault-injected variant (`mr3_xyzwbug`, `mr4_bug`, `mr5_bug`), where `violation` means the injected bug was detected.
 
+## Large-scale run
+
+```bash
+python gsplat_mt/run_large_scale.py --n-scenes 2000 --out results/large_scale.csv
+python gsplat_mt/run_large_scale.py --only-scene 137 --out results/one.csv   # replay one scene
+```
+
+Each scene samples its own configuration (Gaussian count 10-5000, scene radius, scale and opacity ranges, camera distance, field of view, 1-8 cameras, resolution) and a stress mode, then runs MR1-MR5 as above. Config values are recorded as `cfg_*` columns; a mode's own overrides win over the sampled values they touch. Outputs next to `--out`: `*.csv`, `*.jsonl` (written per scene, so a timeout keeps partial results), `*_findings.csv` (scenes with any crash/violation/isolated_discontinuity/tie_ambiguous/invalid_output), `*_summary.json` (verdict counts per mode, fault-injection detection, Spearman correlations of scene properties with MR1/MR4 D_max). The run stops early on a CUDA error other than out-of-memory, since later scenes would be invalid.
+
 ## SLURM (SoC cluster)
 
 ```bash
-sbatch soc-cluster.sh
+sbatch soc-cluster.sh        # all scene modes, default settings
+sbatch soc-cluster-large.sh  # large-scale randomized study
 ```
 
-Requests a single A100-40GB GPU, activates the `gsplat` conda env, installs
-dependencies, and runs all scene modes with default settings.
+Each requests a single GPU, activates the `gsplat` conda env, and installs dependencies.
 
 ## Layout
 
@@ -55,3 +64,5 @@ dependencies, and runs all scene modes with default settings.
 - `gsplat_mt/mr1_packed.py`, `mr2_batch.py`, `mr3_covariance.py`, `mr4_world_scale.py`, `mr5_permutation.py` -- the five MRs
 - `gsplat_mt/repro_issues.py` -- reproductions of gsplat issues #764 and #630
 - `gsplat_mt/run_preliminary.py` -- CLI runner
+- `gsplat_mt/run_large_scale.py` -- randomized-configuration runner (reuses `run_preliminary.run_one_scene`)
+- `gsplat_mt/diagnose_mr4.py` -- per-pixel MR4 diagnosis for one scene
