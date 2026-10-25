@@ -1,6 +1,6 @@
 # Week 8: MR4/MR5 and render-visibility checks
 
-Changes since the week 7 commit, and the results of the resulting run (SLURM job 979783).
+World-scale and permutation relations, checks for renders that prove nothing, and a diagnosis of the one MR4 discrepancy found.
 
 ## Changes
 
@@ -23,9 +23,9 @@ The runner sweeps `--world-scales` (default `0.01 0.25 4 100`) and records the w
 
 ### Oracle (`gsplat_mt/metrics.py`)
 
-`verdict()` can return `isolated_discontinuity` (MR1 and MR4 only): every image over tolerance has at most `ISOLATED_PIXEL_FRAC = 5e-4` of its pixels over tolerance (2 of 4096 at 64x64). `compare_images(a, b, tol)` now also counts `n_px_over` (pixels whose max channel difference exceeds `tol`), written to the CSV as `*_n_px_over`. MR2, MR3, MR5 and the fault-injection rows are never relabeled.
-
-`TOLERANCES` now has `mr4: 1e-4` (same as MR1, since every float is rescaled) and `mr5: 0.0` (order should not matter away from depth ties). Both are initial values.
+- `TOLERANCES` adds `mr4: 1e-4` (same as MR1, since every float is rescaled) and `mr5: 0` (order should not matter away from depth ties).
+- `compare_images(a, b, tol)` also counts `n_px_over`: pixels whose max channel difference exceeds `tol` (CSV: `*_n_px_over`).
+- `verdict()` can return `isolated_discontinuity` for MR1 and MR4 only: every image over tolerance has at most 0.05% of its pixels over tolerance (`ISOLATED_PIXEL_FRAC`; 2 of 4096 at 64x64). MR2, MR3, MR5 and the fault-injection rows are never relabeled, since those should be bit-exact or must keep detecting bugs.
 
 ### Render visibility (`gsplat_mt/run_preliminary.py`)
 
@@ -34,48 +34,47 @@ The runner sweeps `--world-scales` (default `0.01 0.25 4 100`) and records the w
 - `coverage_cam0`, `coverage_mean`: fraction of pixels with alpha > 0.
 - `opaque_frac_cam0`, `opaque_frac_mean`: fraction of pixels with alpha > 0.99.
 - `n_empty_cams`: cameras that drew nothing.
-- `n_visible_cam0`, `n_visible_any`: Gaussians with `meta["radii"] > 0` (gsplat's culling).
+- `n_visible_cam0`, `n_visible_any`: Gaussians surviving gsplat's culling (`meta["radii"] > 0`).
 
 A `pass` on a render that draws nothing becomes `vacuous_pass`: camera 0 empty for MR1, MR3, MR4, MR5 (and their fault-injection rows); every camera empty for MR2.
 
 ### Generator
 
-`scale_huge` scales shrunk from [0.5, 2.0] to [0.15, 0.5]; at the old range 18/20 scenes were over 95% opaque (see Notes).
+`scale_huge` scales narrowed from [0.5, 2.0] to [0.15, 0.5] (see Findings).
 
-### Runner
+### Diagnosis tool (`gsplat_mt/diagnose_mr4.py`)
 
-- New CSV columns for MR4/MR5 and the visibility stats; new verdict keys `mr4_verdict`, `mr4_bug_verdict`, `mr5_verdict`, `mr5_bug_verdict`.
-- `gsplat_mt/diagnose_mr4.py`: per-pixel MR4 diagnosis for one scene (`--scene-idx`, `--mode`), over exact (power-of-two) and inexact k.
-- `soc-cluster.sh` writes to `results/week8_results.csv`.
+Replays one scene and compares original vs k-scaled renders pixel by pixel, over power-of-two k (exact in binary) and inexact k. For pixels over tolerance it reports where they are and the alpha of the single Gaussian that would explain the difference (`alpha = 1 - T_small / T_large`, from the final transmittance at that pixel). Run as `python gsplat_mt/diagnose_mr4.py --scene-idx N --mode MODE`.
 
-## Results (8 modes x 20 scenes = 160)
+## What was tested
 
-Job 979783 used the old `scale_huge` range. Jobs 981409 and 985282 use [0.15, 0.5]; 985282 additionally has the `isolated_discontinuity` verdict. Same seeds and code otherwise, so 981409 and 985282 give identical D_max values.
+8 modes x 20 random scenes (160 scenes; 20-200 Gaussians, 64x64, 4 cameras) through MR1-MR5 with all three fault injections (MR3 `xyzw_bug`, MR4 `no_translation`, MR5 `misaligned`), plus the issue #764 and #630 reproductions.
 
-| Relation | Max D_max (979783 / 985282) | Verdict (979783 / 985282) |
-| --- | --- | --- |
-| MR1 packed vs unpacked | 2.38e-07 / 2.98e-07 | pass / pass |
-| MR2 batched vs individual | 0 / 0 | pass / pass |
-| MR3 covariance (correct) | 0 / 0 | pass / pass |
-| MR4 world scale | 4.68e-06 / 5.96e-04 | pass / pass except `isolated_discontinuity` (scene 68) |
-| MR5 permutation | 0 / 0 | pass / pass |
+## Findings
 
-- Scenes with an MR error or crash: 0/160.
-- Fault injections: MR3 `xyzw_bug` (D_max up to 0.593), MR4 `no_translation` (up to 0.961) and MR5 `misaligned` (up to 0.922) were detected in every scene with a non-empty render.
-- MR4's worst case was always k=100 or k=0.01.
-- Job 981409 (before the isolated-pixel rule, reported as a violation): `scale_huge` scene 68 (188 Gaussians) exceeds the MR4 tolerance at k=0.01: D_max 5.96e-04 (tolerance 1e-4) but D_mae 1.35e-07, i.e. a difference confined to very few pixel values. The next largest MR4 D_max in the run is 4.68e-06. `gsplat_mt/diagnose_mr4.py` (run on job 985185) shows the cause is a rasterizer threshold flip, not a scale-handling bug:
-  - Power-of-two k (1/128, 1/4, 4, 128) give D_max exactly 0 over all pixels; repeated renders are identical.
-  - At k=0.01 about 3800 of 4096 pixels differ by ~1e-7 (float noise) and exactly one pixel, (y=19, x=17), differs by 5.96e-04. Its remaining transmittance (1-alpha) is 4.206e-3 vs 4.189e-3, a 0.4% ratio equal to (1 - 1/255)^-1, i.e. one Gaussian with alpha near 1/255 was skipped in one render and blended in the other.
-  - gsplat 1.5.3 skips Gaussians with alpha < 1/255 (`ALPHA_THRESHOLD` in `cuda/include/Common.h`). Per-Gaussian alpha at that pixel was not logged, so this is strongly supported but not directly observed.
-  - Job 985282 with the isolated-pixel rule: scene 68 reports `mr4_verdict = isolated_discontinuity` (`mr4_rgb_n_px_over` = 1 of 4096, under the 2-pixel cutoff), with D_max still recorded as 5.96e-04. It is the only scene in the run with a nonzero `mr4_rgb_n_px_over`; `mr1_rgb_n_px_over` and `mr1_alpha_n_px_over` are 0 in all 160 scenes. `scale_huge` MR4: 19 pass, 1 `isolated_discontinuity`.
-- MR5 depth ties: 3 scenes, none produced a `tie_ambiguous`.
-- Issues #764 and #630 reproduced again.
-- Per-scene time: mean 15 ms, max 0.23 s (CUDA extension already compiled).
+| Relation                  | Max D_max | Verdict                                           |
+| ------------------------- | --------- | ------------------------------------------------- |
+| MR1 packed vs unpacked    | 3.0e-07   | pass                                              |
+| MR2 batched vs individual | 0         | pass                                              |
+| MR3 covariance (correct)  | 0         | pass                                              |
+| MR4 world scale           | 6.0e-04   | pass, except one `isolated_discontinuity` (below) |
+| MR5 permutation           | 0         | pass                                              |
 
-## Notes
+- No scene crashed. Fault injections were detected in every scene with a non-empty render (D_max up to 0.59 for MR3, 0.96 for MR4, 0.92 for MR5). MR5's injection cannot fire for `single` (N = 1), where the permutation is the identity.
+- MR4's worst case was always k = 100 or k = 0.01. MR4 noise is about 1e-6 for typical scenes.
+- MR5: 3 scenes had near-equal depths; none produced a difference.
+- One `far_clipped` scene rendered nothing; its results are `vacuous_pass`. Its `n_visible_cam0` was 1, so the culling-based count does not guarantee drawn pixels; coverage is what verdicts use.
 
-- `far_clipped` scene 138 (68 Gaussians) rendered nothing. Its MR results are `vacuous_pass`. It reports `n_visible_cam0 = 1`, so the radii-based count does not guarantee drawn pixels; coverage is what the verdicts use.
-- `far_clipped` has a median of 6 visible Gaussians out of 132; `wide_spread` 17.5 out of 85.
-- With the old `scale_huge` range [0.5, 2.0], `coverage_cam0 = 1.0` in every scene and `opaque_frac_cam0` had median 1.000 (18/20 scenes > 0.95), so hidden Gaussians could not affect pixels. With [0.15, 0.5] (job 981409): `opaque_frac_cam0` median 0.161 (0.080-0.442, 0/20 > 0.95), `coverage_cam0` median 0.786 (min 0.458).
-- In the other modes `opaque_frac_cam0` is at most 0.051 and median `coverage_cam0` is 0.012-0.156, so most pixels are background.
-- MR5's fault injection cannot fire for `single` (N = 1), since the permutation is the identity.
+### The MR4 discrepancy is a rasterizer threshold flip, not a scale bug
+
+One dense `scale_huge` scene (188 Gaussians) exceeded the MR4 tolerance at k = 0.01 (D_max 5.96e-04 against 1e-4, but D_mae 1.4e-07). Per-pixel diagnosis:
+
+- Power-of-two k (1/128, 1/4, 4, 128) gave D_max exactly 0 over all pixels, and repeated renders are identical. gsplat's scale handling is exact.
+- At k = 0.01 about 3800 of 4096 pixels differed by ~1e-7 (rounding from the inexact factor), and exactly one pixel differed by 5.96e-04.
+- At that pixel, final transmittance differed by 0.4%, equal to `(1 - 1/255)^-1`: one Gaussian with alpha near 1/255 was skipped in one render and blended in the other. gsplat skips Gaussians with alpha < 1/255 (`ALPHA_THRESHOLD` in `cuda/include/Common.h`). Per-Gaussian alpha at that pixel was not logged, so this is strongly supported but not directly observed.
+- Under the isolated-pixel rule this scene is reported as `isolated_discontinuity` (1 of 4096 pixels over tolerance), with D_max still recorded. It is the only scene in the run with a nonzero MR4 pixel count; MR1 pixel counts are 0 everywhere.
+
+### Image content: saturation and sparsity
+
+- With the old `scale_huge` range [0.5, 2.0], every pixel had alpha > 0 and the median opaque fraction was 1.0 (18 of 20 scenes over 95% opaque), so Gaussians behind the front layer could not affect pixels. With [0.15, 0.5] the median opaque fraction is 0.16 (range 0.08-0.44) and median coverage 0.79.
+- In the other modes the opaque fraction is at most 0.05 and median coverage is 0.01-0.16, so most pixels are background. Passes there rest on sparse images; the injected bugs are still detected because they move enough pixels.
