@@ -51,7 +51,9 @@ Flags: `--n-scenes` (default 2000), `--seed` (default 1000), `--modes`, `--n-min
 
 ## Findings
 
-No scene crashed and the run did not abort. It took about 8 minutes: 418 s for the first scene (the CUDA compile) and 51 s for the other 1999 (median 16 ms, p99 0.15 s, max 0.18 s).
+No scene crashed and the run did not abort. Running the study twice with the same seeds gave identical verdicts.
+
+**Run time.** Per-scene time is about 16 ms regardless of scene size or mode (per-mode medians 15-17 ms; p99 0.12-0.15 s; max 0.18 s), so it is dominated by fixed overhead and not by the number of Gaussians or the resolution. The only large cost is the one-time CUDA extension compile, which falls on the first scene when the extension is not already built: 418 s in one run (about 8 minutes total), versus 0.8 s for the first scene (48 s total) in a run where it was already built.
 
 | Relation | Result over 2000 scenes |
 | --- | --- |
@@ -77,4 +79,3 @@ No scene crashed and the run did not abort. It took about 8 minutes: 418 s for t
 ## Open
 
 - The three MR4 violations are not yet explained. Either they are the same cutoff flips at higher density (and the 0.05% isolated-pixel cutoff, chosen from a single week 8 case, is too tight), or something else. Replaying them with `diagnose_mr4.py --large` tests this: if power-of-two k gives exactly 0, the differences are rounding at a cutoff; if not, there is a real scale-dependent difference. A permanent version would add power-of-two factors to the MR4 sweep with exact zero tolerance.
-- The run predates the timing summary in `*_summary.json`; the timings above come from the per-scene `time_s` column.
