@@ -244,6 +244,9 @@ def run_one_scene(
     row["mr5_verdict"] = verdict((mr5.rgb, mr5.alpha), mr5.error, TOLERANCES["mr5"])
     if mr5.depth_tie and row["mr5_verdict"] == "violation":
         row["mr5_verdict"] = "tie_ambiguous"  # compositing order of tied depths is ambiguous
+    # MR4 rounds every depth, so near-equal depths can swap order between the two renders.
+    if mr5.depth_tie and row["mr4_verdict"] in ("violation", "isolated_discontinuity"):
+        row["mr4_verdict"] = "tie_ambiguous"
 
     # Fault injection: colors not permuted along with the other attributes.
     mr5_bug = run_mr5(scene, cameras[0], seed, mode="misaligned")

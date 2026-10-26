@@ -20,6 +20,10 @@ Replays one scene and compares the original render with the k-scaled render pixe
 - Sweeps exact (power-of-two) and inexact k. For pixels over tolerance it reports how many 16x16 tiles they fall in, the relative change in final transmittance, the alpha of the single Gaussian that would explain a change (`alpha = 1 - T_small / T_large`), and the smallest relative depth gaps between depth-adjacent Gaussians that could cover the pixel.
 - `--bisect [--bisect-k K]`: for the worst pixel, removes Gaussians chunk by chunk (delta debugging), keeping each removal that still leaves at least half of the original difference at that pixel. It ends with a smallest set of Gaussians that causes the difference and prints their depths and alphas in both renders, from gsplat's own reported values (`meta["depths"]`, `meta["conics"]`, `meta["opacities"]`). The search logic was checked on cases with a known answer (it found the exact needed Gaussians in all four).
 
+### MR4 depth-tie label (`gsplat_mt/run_preliminary.py`)
+
+If the scene has near-equal depths (the MR5 `mr5_depth_tie` check: two Gaussians in front of camera 0 with camera-space depths closer than 1e-6, absolute), an MR4 `violation` or `isolated_discontinuity` is reported as `tie_ambiguous`. Bisection showed such differences can come from two tied Gaussians swapping order after the depths are rescaled. Raw `mr4_rgb_d_max` and `mr4_rgb_n_px_over` are still recorded, and the MR4 fault injection (`no_translation`) is not relabeled. Cost: in a tied scene (about 19% of the large-scale scenes) a genuine MR4 error of small size would also be labeled `tie_ambiguous`. This change was not run on the cluster.
+
 ## What was tested
 
 - Every discrepancy from the 2000-scene randomized run was grouped by relation, size (D_max), and number of pixels over tolerance.
@@ -47,7 +51,7 @@ If one Gaussian is blended in one render and skipped in the other, the pixel cha
 
 - Direct measurement on a small `scale_huge` scene: at the one differing pixel, final transmittance differed by 0.393% and the implied alpha was 0.00393 (1/255 = 0.00392).
 - Of the eight largest MR4 D_max values in the run, six single-pixel cases lie between 3.2e-03 and 3.6e-03, just under that bound. One of them is an N = 1 scene: a lone Gaussian cannot be reordered with anything, so its single-pixel difference at the edge of its footprint is the cutoff effect in its simplest form.
-- Two of the eight are above the bound: a `default` scene at 4.9e-03 (185 pixels) and a `scale_tiny` scene at 5.5e-02 (5 pixels, 14x the bound).
+- Two of the eight are above the bound: a `default` scene at 4.9e-03 (185 pixels) and a `scale_tiny` scene at 5.5e-02 (5 pixels, 14x the bound). Bisection (below) shows both are depth-order flips, not cutoff flips, which is why they exceed the bound.
 
 ### The three MR4 violations differ from the single-pixel cases
 
@@ -59,7 +63,17 @@ All three are at k = 0.01, have 1400+ Gaussians, and touch 28 to 185 pixels (0.2
   - One has a pair at exactly equal depth among 496 candidates.
   - One has a smallest gap of 9.9e-08 among about 1000 candidates; with that many candidates a gap that small is about what random depths give, so it is not evidence by itself.
   - MR5 reports exactly 0 difference on all three scenes, although all three are flagged as having depth ties. A swap would often, not always, change under a random permutation.
-- The mechanism of these three is therefore not established (see Pending).
+
+### Bisection: two causes, both measured
+
+For each scene's worst pixel (at k = 0.01), delta debugging removed Gaussians while the difference at that pixel stayed at least half of the original. Values come from gsplat's own `meta` output.
+
+- **Alpha-cutoff flip (the small `scale_huge` scene).** One Gaussian out of 188 is enough. Its alpha at the pixel center is 0.003922 in both renders, which is 1/255 (0.0039216) to the printed precision; the renders differ only in the last digits, and the cutoff decides whether it is blended (1 - alpha is 1.0 in one render and 0.99608 in the other). The pixel difference with the full scene is 6e-04.
+- **Depth-order flip (the three violators and the 5.5e-02 outlier).** Two Gaussians out of 1410-4928 are enough in all four scenes. In each, the two have relative depth gaps of 6.0e-08, 0, 9.9e-08 and 0, which is at most about one float32 step (1.2e-07). In the original render the order is fixed one way; in the k-scaled render (depths divided by k) they come out tied or swapped, because the depths pass through a multiplication by 0.01 and a division. Their combined (1 - alpha) is the same in both renders to about 1e-6 relative, so the cutoff is not involved: the same two Gaussians are blended, only in a different order, which changes the color. Alphas at the pixel are 0.05-0.41, far above 1/255.
+  - The pair alone changes the worst pixel by 3.1e-03 to 5.8e-02. In the full scene the pixel difference is 1.8e-03 to 5.5e-02, smaller where other Gaussians also contribute at that pixel.
+  - This replaces the earlier "mixed evidence": the 9.9e-08 gap in the scene with about 1000 candidates is not a chance coincidence, since removing everything else but the pair still reproduces the difference.
+- Not measured here: how the tied order is resolved inside gsplat's sort (tied depths gave one order in one render and the other order, or a tie, in the other). Also, only the worst pixel was bisected, so the remaining 27-184 pixels per violator are presumably, but not shown to be, caused by the same pair. The early-stop pattern seen in one scene (some pixels with large transmittance change) was not examined.
+- MR5 reports exactly 0 on these scenes although each has a tied pair. One random permutation reorders a given tied pair only about half the time, so a 0 is not surprising, but it was not checked per pair.
 
 ### Scene characteristics associated with larger differences
 
@@ -86,7 +100,7 @@ All three are at k = 0.01, have 1400+ Gaussians, and touch 28 to 185 pixels (0.2
 
 ### The pixel-fraction rule is not enough
 
-The `isolated_discontinuity` label, based only on pixel count, accepted a scene with D_max 5.5e-02, far above what one alpha-cutoff flip can produce. A label that also bounds the size of the difference (about 1/255) would not have.
+The `isolated_discontinuity` label, based only on pixel count, accepted a scene with D_max 5.5e-02, far above what one alpha-cutoff flip can produce. That scene is a depth-order flip of two nearly-tied Gaussians, as are the three violators. A label that also bounds the size of the difference (about 1/255) would not have accepted it. The violator/isolated split by pixel count therefore separates two different things only loosely: the violators are a depth swap of two large Gaussians that overlap many pixels, and a swap of two small ones can touch a single pixel and be labeled isolated.
 
 ## Proposed changes (not implemented)
 
@@ -95,5 +109,6 @@ The `isolated_discontinuity` label, based only on pixel count, accepted a scene 
 
 ## Pending
 
-- Bisection results (smallest set of Gaussians that reproduces the worst pixel, and their depths and alphas in both renders) for the three violators, the `scale_huge` scene, and the 5.5e-02 outlier. This is what will say whether the violators are depth-order swaps, cutoff flips, or something else.
-- The seven MR1 single-pixel cases and the 5.5e-02 outlier have not been diagnosed.
+- The seven MR1 single-pixel cases have not been diagnosed (bisection at k does not apply; the packed/unpacked pair would need its own script).
+- Bisection covered only the worst pixel of five scenes. The 85 MR4 isolated cases were not bisected, so how many are cutoff flips and how many depth swaps is unknown.
+- How gsplat's sort resolves equal depths, and the early-stop pattern in one violator.
