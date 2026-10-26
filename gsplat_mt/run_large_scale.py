@@ -42,7 +42,7 @@ from run_preliminary import (
 from scene import SCENE_MODES
 
 RESOLUTIONS = [(64, 64), (120, 90), (128, 128), (256, 192), (256, 256)]
-MR_KEYS = ["mr1_verdict", "mr2_verdict", "mr3_correct_verdict", "mr4_verdict", "mr5_verdict"]
+MR_KEYS = ["mr1_verdict", "mr2_verdict", "mr3_correct_verdict", "mr4_verdict", "mr4_exact_verdict", "mr5_verdict"]
 BUG_KEYS = ["mr3_xyzwbug_verdict", "mr4_bug_verdict", "mr5_bug_verdict"]
 UNREMARKABLE = ("pass", "vacuous_pass")
 CORR_PROPS = [
@@ -196,7 +196,7 @@ def main(argv=None) -> int:
     p.add_argument("--n-min", type=int, default=10)
     p.add_argument("--n-max", type=int, default=5000)
     p.add_argument("--max-cameras", type=int, default=8)
-    p.add_argument("--world-scales", type=float, nargs="+", default=[0.01, 0.25, 4.0, 100.0])
+    p.add_argument("--world-scales", type=float, nargs="+", default=[0.01, 0.0078125, 0.25, 4.0, 100.0, 128.0])
     p.add_argument("--seed", type=int, default=1000)
     p.add_argument("--only-scene", type=int, default=None, help="run just this scene index")
     p.add_argument("--device", type=str, default="cuda")

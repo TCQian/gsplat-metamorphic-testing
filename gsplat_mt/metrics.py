@@ -7,6 +7,7 @@ Tolerances come from the preliminary study's measured noise floor.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import Optional, Tuple
 
@@ -24,6 +25,12 @@ TOLERANCES = {"mr1": 1e-4, "mr2": 0.0, "mr3": 0.0, "mr4": 1e-4, "mr5": 0.0}
 # `isolated_discontinuity` for the float-noise relations (MR1, MR4): one pixel
 # crossing a rasterizer cutoff (e.g. alpha < 1/255) is not an image-wide error.
 ISOLATED_PIXEL_FRAC = 5e-4
+
+# ...and its difference must also be no larger than what one cutoff flip can
+# produce: a Gaussian with alpha ~1/255 (gsplat's ALPHA_THRESHOLD) blended in
+# one render and skipped in the other changes a pixel by at most
+# color x alpha x T <= 1/255 = 3.9e-3 (colors are in [0, 1]).
+ISOLATED_MAX_D_MAX = 4e-3
 
 
 @dataclass
@@ -74,8 +81,8 @@ def verdict(
     """crash | violation | isolated_discontinuity | invalid_output | pass.
 
     isolated_discontinuity (only if `allow_isolated`): every image over `tol`
-    has at most ISOLATED_PIXEL_FRAC of its pixels over `tol`; the diffs must
-    have been built with compare_images(..., tol=tol).
+    has at most ISOLATED_PIXEL_FRAC of its pixels over `tol` and a D_max of at most
+    ISOLATED_MAX_D_MAX; the diffs must have been built with compare_images(..., tol=tol).
     invalid_output: both configurations agree within `tol` but emit NaN/Inf.
     """
     if error is not None:
@@ -84,10 +91,17 @@ def verdict(
     over = [d for d in diffs if d.d_max > tol]
     if over:
         if allow_isolated and all(
-            d.n_px_over <= int(ISOLATED_PIXEL_FRAC * d.n_pixels) for d in over
+            d.n_px_over <= int(ISOLATED_PIXEL_FRAC * d.n_pixels) and d.d_max <= ISOLATED_MAX_D_MAX
+            for d in over
         ):
             return "isolated_discontinuity"
         return "violation"
     if any(d.has_nan or d.has_inf for d in diffs):
         return "invalid_output"
     return "pass"
+
+
+def is_power_of_two(k: float) -> bool:
+    """True if k = 2^n exactly, so multiplying by k introduces no float rounding."""
+    m, _ = math.frexp(k)
+    return m == 0.5

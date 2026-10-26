@@ -21,7 +21,7 @@ from typing import Dict, List
 
 import gsplat
 import torch
-from metrics import TOLERANCES, verdict
+from metrics import TOLERANCES, is_power_of_two, verdict
 from mr1_packed import run_mr1
 from mr2_batch import run_mr2
 from mr3_covariance import run_mr3
@@ -231,6 +231,19 @@ def run_one_scene(
         mr4_diffs, mr4_error, TOLERANCES["mr4"], allow_isolated=True
     )
 
+    # Power-of-two k scale exactly in binary, so those renders must be identical:
+    # no tolerance, no isolated/tie relabeling.
+    exact = [r for k, r in mr4_runs if is_power_of_two(k)]
+    if exact:
+        exact_diffs = tuple(d for r in exact for d in (r.rgb, r.alpha))
+        exact_error = next((r.error for r in exact if r.error), None)
+        row["mr4_exact_d_max"] = (
+            max(d.d_max for d in exact_diffs if d is not None)
+            if any(d is not None for d in exact_diffs)
+            else None
+        )
+        row["mr4_exact_verdict"] = verdict(exact_diffs, exact_error, 0.0)
+
     # Fault injection: camera translation not scaled, at the largest factor.
     mr4_bug = run_mr4(scene, cameras[0], max(args.world_scales), mode="no_translation")
     row.update(flatten_diff("mr4_bug_rgb", mr4_bug.rgb, mr4_bug.error))
@@ -285,6 +298,7 @@ VERDICT_KEYS = [
     "mr3_correct_verdict",
     "mr3_xyzwbug_verdict",
     "mr4_verdict",
+    "mr4_exact_verdict",
     "mr4_bug_verdict",
     "mr5_verdict",
     "mr5_bug_verdict",
@@ -329,8 +343,8 @@ def build_argparser() -> argparse.ArgumentParser:
         "--world-scales",
         type=float,
         nargs="+",
-        default=[0.01, 0.25, 4.0, 100.0],
-        help="MR4 world-scale factors k",
+        default=[0.01, 0.0078125, 0.25, 4.0, 100.0, 128.0],
+        help="MR4 world-scale factors k; powers of two are also checked for exact equality",
     )
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--device", type=str, default="cuda")
@@ -427,6 +441,7 @@ def main(argv=None) -> int:
         "mr3_xyzwbug_rgb_d_mae",
         "mr4_rgb_d_max",
         "mr4_rgb_d_mae",
+        "mr4_exact_d_max",
         "mr4_bug_rgb_d_max",
         "mr5_rgb_d_max",
         "mr5_rgb_d_mae",

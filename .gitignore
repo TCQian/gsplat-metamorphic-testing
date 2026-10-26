@@ -5,3 +5,4 @@ acmart.cls
 results/
 .vscode
 CLAUDE.md
+__pycache__

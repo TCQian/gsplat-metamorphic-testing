@@ -26,9 +26,20 @@ base-vs-scaled difference at that pixel, then prints those Gaussians' depths
 and alphas as reported by gsplat (meta["depths"], meta["conics"], ...) in both
 renders, so the cause can be read off instead of inferred.
 
+Each bisection ends with a `CLASS:` line read off measured values: if the
+pixel's final transmittance changed, a Gaussian was blended in one render and
+skipped in the other (the line notes when T is near the 1e-4 early-stop
+threshold); if it did not change and the kept pair has a depth gap of about one
+float32 step, the blend order flipped. `--by T` picks the pixel with the largest
+relative transmittance change instead of the largest color difference.
+`--scenes-from CSV --where col=value` bisects every matching scene at its
+mr4_worst_k and prints a count per class.
+
 Usage:
     python gsplat_mt/diagnose_mr4.py --scene-idx 68 --mode scale_huge
     python gsplat_mt/diagnose_mr4.py --scene-idx 112 --large --bisect
+    python gsplat_mt/diagnose_mr4.py --scene-idx 112 --large --bisect --by T
+    python gsplat_mt/diagnose_mr4.py --scenes-from results/large_scale.csv --where mr4_verdict=isolated_discontinuity
     python gsplat_mt/diagnose_mr4.py --scene-idx 112 --large
 """
 
@@ -188,12 +199,21 @@ def ddmin(items, test, max_evals=20000):
     return items, evals
 
 
+def meta_at(meta, key, g):
+    """Entry of a gsplat meta array for (subset-local) Gaussian g, unpacked [C,N,...] or packed [nnz,...]."""
+    v = meta[key]
+    ids = meta.get("gaussian_ids")
+    if isinstance(ids, torch.Tensor) and ids.dim() == 1 and v.shape[0] == ids.shape[0]:
+        return v[(ids == g).nonzero()[0, 0]]
+    return v[0, g]
+
+
 def alpha_estimates(meta, g, y, x):
     """Alpha of Gaussian g at pixel (y, x) from gsplat's reported means2d/conics/opacities."""
     try:
-        mx, my = meta["means2d"][0, g]
-        a, b, c = meta["conics"][0, g]
-        op = meta["opacities"][0, g]
+        mx, my = meta_at(meta, "means2d", g)
+        a, b, c = meta_at(meta, "conics", g)
+        op = meta_at(meta, "opacities", g)
     except Exception as e:  # noqa: BLE001
         return f"unavailable ({type(e).__name__})"
     out = []
@@ -204,41 +224,91 @@ def alpha_estimates(meta, g, y, x):
     return ", ".join(out)
 
 
-def bisect(scene, cam, k, tol=TOL):
-    rgb0, _ = render(scene, cam, 1.0)
-    rgbk, _ = render(scene, cam, k)
+def rel_t_change(alpha_a, alpha_b):
+    """Relative change in final transmittance T = 1 - alpha between two renders."""
+    ta, tb = 1 - alpha_a, 1 - alpha_b
+    return (ta - tb).abs() / torch.maximum(ta, tb).clamp_min(1e-12)
+
+
+def pick_pixel(diff, alpha0, alphak, tol, by):
+    """Worst pixel by color difference, or by relative transmittance change among pixels over tol."""
+    if by == "color":
+        _, flat = diff.flatten().max(0)
+    else:
+        rel = rel_t_change(alpha0, alphak)
+        usable = (diff > tol) & ((1 - alpha0) > 1e-4) & ((1 - alphak) > 1e-4)
+        if not usable.any():
+            return None
+        _, flat = torch.where(usable, rel, torch.zeros_like(rel)).flatten().max(0)
+    return divmod(int(flat), diff.shape[1])
+
+
+def bisect(scene, cam, k, tol=TOL, by="color", pixel=None, render_a=None, render_b=None, k_b=None):
+    """Delta-debug the Gaussians behind one pixel's base-vs-scaled difference; returns a summary dict.
+
+    The pixel is the worst by color (`by="color"`), the largest relative change in
+    final transmittance among pixels over tol (`by="T"`), or `pixel=(y, x)`. The
+    measure kept above half its initial value is the same one used to pick it.
+
+    By default the two renders are the original and the k-scaled scene. Pass
+    render_a / render_b (callables (scene, with_meta) -> render() outputs) and
+    k_b (factor to divide render_b's depths by) to compare other pairs.
+    """
+    render_a = render_a or (lambda sc, meta: render(sc, cam, 1.0, with_meta=meta))
+    render_b = render_b or (lambda sc, meta: render(sc, cam, k, with_meta=meta))
+    k_b = k if k_b is None else k_b
+    rgb0, alpha0 = render_a(scene, False)
+    rgbk, alphak = render_b(scene, False)
     diff = (rgbk - rgb0).abs().amax(-1)
-    d0, flat = diff.flatten().max(0)
-    y, x = divmod(int(flat), diff.shape[1])
-    print(f"\nbisect at k={k:g}: worst pixel (y={y}, x={x}), diff={d0.item():.3e}")
-    if d0.item() <= tol:
-        print("  nothing over tolerance; skipping")
-        return
-    thresh = 0.5 * d0.item()
+    if pixel is None:
+        pixel = pick_pixel(diff, alpha0, alphak, tol, by)
+    if pixel is None or diff.max().item() <= tol:
+        print(f"\nbisect at k={k:g}: nothing over tolerance; skipping")
+        return None
+    y, x = pixel
+    measure_t = by == "T"
+
+    def measure(ra, aa, rb, ab):
+        if measure_t:
+            return rel_t_change(aa[y, x], ab[y, x]).item()
+        return (rb[y, x] - ra[y, x]).abs().max().item()
+
+    m0 = measure(rgb0, alpha0, rgbk, alphak)
+    print(
+        f"\nbisect at k={k:g}: pixel (y={y}, x={x}) chosen by {'transmittance change' if measure_t else 'color'}: "
+        f"color diff={diff[y, x].item():.3e}, relative change in T={rel_t_change(alpha0[y, x], alphak[y, x]).item():.2e}, "
+        f"T base={1 - alpha0[y, x].item():.4e} scaled={1 - alphak[y, x].item():.4e}"
+    )
+    thresh = 0.5 * m0
     device = scene.means.device
 
     def test(idx):
         if not idx:
             return False
         sub = subset(scene, torch.tensor(idx, device=device))
-        a, _ = render(sub, cam, 1.0)
-        b, _ = render(sub, cam, k)
-        return (b[y, x] - a[y, x]).abs().max().item() >= thresh
+        ra, aa = render_a(sub, False)
+        rb, ab = render_b(sub, False)
+        return measure(ra, aa, rb, ab) >= thresh
 
     keep, evals = ddmin(list(range(scene.n)), test)
-    print(f"  smallest set found: {len(keep)} Gaussian(s) of {scene.n} (kept while diff at the pixel stays >= {thresh:.2e}); {evals} test renders")
+    print(
+        f"  smallest set found: {len(keep)} Gaussian(s) of {scene.n} "
+        f"(kept while {'relative T change' if measure_t else 'diff'} at the pixel stays >= {thresh:.2e}); {evals} test renders"
+    )
     sub = subset(scene, torch.tensor(keep, device=device))
-    ra, aa, ma = render(sub, cam, 1.0, with_meta=True)
-    rb, ab, mb = render(sub, cam, k, with_meta=True)
+    ra, aa, ma = render_a(sub, True)
+    rb, ab, mb = render_b(sub, True)
+    t_a, t_b = 1 - aa[y, x].item(), 1 - ab[y, x].item()
+    rel_t = rel_t_change(aa[y, x], ab[y, x]).item()
     print(
         f"  these alone: diff at pixel = {(rb[y, x] - ra[y, x]).abs().max().item():.3e}; "
-        f"1-alpha there: base={1 - aa[y, x].item():.6e} scaled={1 - ab[y, x].item():.6e}"
+        f"final T there: base={t_a:.6e} scaled={t_b:.6e} (relative change {rel_t:.2e})"
     )
     zs = {}
     for j, g in enumerate(keep[:6]):
         try:
-            z0 = ma["depths"][0, j].item()
-            zk = mb["depths"][0, j].item() / k
+            z0 = meta_at(ma, "depths", j).item()
+            zk = meta_at(mb, "depths", j).item() / k_b
         except Exception as e:  # noqa: BLE001
             z0 = zk = float("nan")
             print(f"  depths unavailable ({type(e).__name__})")
@@ -248,33 +318,36 @@ def bisect(scene, cam, k, tol=TOL):
         print(f"    alpha at pixel, base render:   {alpha_estimates(ma, j, y, x)}")
         print(f"    alpha at pixel, scaled render: {alpha_estimates(mb, j, y, x)}")
     gs = list(zs)
+    gaps = []
     for i in range(len(gs)):
         for j in range(i + 1, len(gs)):
             (a0, ak), (b0, bk) = zs[gs[i]], zs[gs[j]]
+            gap = abs(a0 - b0) / max(a0, b0)
+            gaps.append(gap)
             print(
-                f"  pair {gs[i]},{gs[j]}: relative depth gap base={abs(a0 - b0) / max(a0, b0):.2e}  "
+                f"  pair {gs[i]},{gs[j]}: relative depth gap base={gap:.2e}  "
                 f"first in base: {gs[i] if a0 < b0 else gs[j] if b0 < a0 else 'tie'}; "
                 f"first in scaled: {gs[i] if ak < bk else gs[j] if bk < ak else 'tie'}"
             )
+    # Read off from measured values only: did T change, or only the order?
+    min_t = min(t_a, t_b)
+    if rel_t >= 1e-3:
+        note = "a Gaussian was blended in one render and skipped in the other"
+        if 1e-5 <= min_t <= 5e-4:
+            note += f"; final T {min_t:.2e} is near gsplat's early-stop threshold (1e-4)"
+        cls = "transmittance-changed"
+    elif gaps and min(gaps) <= 3e-7:
+        note = f"same transmittance, depth gap {min(gaps):.1e} (about one float32 step)"
+        cls = "depth-order"
+    else:
+        note = "neither a transmittance change nor a near-tied pair"
+        cls = "unclassified"
+    print(f"  CLASS: {cls} ({len(keep)} Gaussians, rel T change {rel_t:.1e}, diff {(rb[y, x] - ra[y, x]).abs().max().item():.1e}): {note}")
+    return {"class": cls, "n_keep": len(keep), "rel_t": rel_t, "min_gap": min(gaps) if gaps else None}
 
 
-def main() -> int:
-    p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--scene-idx", type=int, required=True)
-    p.add_argument("--mode", type=str, default=None, help="scene mode (not used with --large)")
-    p.add_argument("--large", action="store_true", help="replay a run_large_scale.py scene")
-    p.add_argument("--seed", type=int, default=None, help="default 0, or 1000 with --large")
-    p.add_argument(
-        "--ks",
-        type=float,
-        nargs="+",
-        default=[1.0, 0.01, 0.0078125, 0.015625, 0.25, 4.0, 64.0, 100.0, 128.0],
-    )
-    p.add_argument("--top", type=int, default=5)
-    p.add_argument("--bisect", action="store_true", help="find a smallest Gaussian set reproducing the worst pixel")
-    p.add_argument("--bisect-k", type=float, default=0.01)
-    a = p.parse_args()
-
+def load(a, scene_idx):
+    """(mode, scene, cameras) for one scene, via run_preliminary or run_large_scale defaults."""
     if a.large:
         # Defaults must match run_large_scale.py's argparser (seed, n range, cameras, modes).
         from run_large_scale import sample_config, scene_args
@@ -286,22 +359,88 @@ def main() -> int:
             n_max=5000,
             max_cameras=8,
             modes=list(SCENE_MODES),
-            world_scales=[0.01, 0.25, 4.0, 100.0],
+            world_scales=[0.01, 0.0078125, 0.25, 4.0, 100.0, 128.0],
         )
-        cfg = sample_config(a.scene_idx, la)
+        cfg = sample_config(scene_idx, la)
         mode, args = cfg["mode"], scene_args(cfg, la)
         print(f"config: {cfg}")
     else:
         if a.mode is None:
-            p.error("--mode is required without --large")
+            raise SystemExit("--mode is required without --large")
         mode, args = a.mode, build_argparser().parse_args([])
         args.seed = 0 if a.seed is None else a.seed
-    scene, cameras = build_scene(a.scene_idx, mode, args, "cuda")
+    scene, cameras = build_scene(scene_idx, mode, args, "cuda")
+    return mode, scene, cameras
+
+
+def cases_from_csv(path, where):
+    """[(scene_idx, mr4_worst_k)] for rows with column == value, e.g. mr4_verdict=isolated_discontinuity."""
+    import csv
+
+    col, val = where.split("=", 1)
+    with open(path) as f:
+        return [
+            (int(r["scene_idx"]), float(r["mr4_worst_k"]) if r.get("mr4_worst_k") else None)
+            for r in csv.DictReader(f)
+            if r.get(col) == val
+        ]
+
+
+def main() -> int:
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--scene-idx", type=int, default=None)
+    p.add_argument(
+        "--scenes-from",
+        type=str,
+        default=None,
+        help="results csv; with --where, bisect every matching scene at its mr4_worst_k (implies --bisect --large)",
+    )
+    p.add_argument("--where", type=str, default="mr4_verdict=isolated_discontinuity", help="column=value filter for --scenes-from")
+    p.add_argument("--mode", type=str, default=None, help="scene mode (not used with --large)")
+    p.add_argument("--large", action="store_true", help="replay a run_large_scale.py scene")
+    p.add_argument("--seed", type=int, default=None, help="default 0, or 1000 with --large")
+    p.add_argument(
+        "--ks",
+        type=float,
+        nargs="+",
+        default=[1.0, 0.01, 0.0078125, 0.015625, 0.25, 4.0, 64.0, 100.0, 128.0],
+    )
+    p.add_argument("--top", type=int, default=5)
+    p.add_argument("--bisect", action="store_true", help="find a smallest Gaussian set reproducing one pixel's difference")
+    p.add_argument("--bisect-k", type=float, default=0.01)
+    p.add_argument(
+        "--by",
+        choices=["color", "T"],
+        default="color",
+        help="pixel to bisect: worst color difference, or largest relative change in final transmittance",
+    )
+    a = p.parse_args()
+
+    if a.scenes_from:
+        a.large = True
+        results = []
+        for idx, k in cases_from_csv(a.scenes_from, a.where):
+            mode, scene, cameras = load(a, idx)
+            cam = cameras[0]
+            print(f"scene {idx} [{mode}] n={scene.n} res={cam.width}x{cam.height} cameras={len(cameras)}")
+            results.append((idx, bisect(scene, cam, k or a.bisect_k, by=a.by)))
+        print(f"\nSUMMARY of {len(results)} scenes (where {a.where}):")
+        counts = {}
+        for idx, r in results:
+            c = r["class"] if r else "nothing over tolerance"
+            counts[c] = counts.get(c, 0) + 1
+            print(f"  scene {idx}: {c}" + (f" (kept {r['n_keep']}, rel T change {r['rel_t']:.1e})" if r else ""))
+        print(f"  counts: {counts}")
+        return 0
+
+    if a.scene_idx is None:
+        p.error("--scene-idx or --scenes-from is required")
+    mode, scene, cameras = load(a, a.scene_idx)
     cam = cameras[0]
     print(f"scene {a.scene_idx} [{mode}] n={scene.n} res={cam.width}x{cam.height} cameras={len(cameras)}")
 
     if a.bisect:
-        bisect(scene, cam, a.bisect_k)
+        bisect(scene, cam, a.bisect_k, by=a.by)
         return 0
 
     rgb0, alpha0 = render(scene, cam, 1.0)

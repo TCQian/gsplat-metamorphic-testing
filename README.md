@@ -25,7 +25,7 @@ Useful flags (`--help` for the full list):
 
 - `--n-scenes`: scenes per mode
 - `--modes`: subset of `default opacity_extreme scale_tiny scale_huge anisotropic wide_spread far_clipped single`
-- `--world-scales`: MR4 scale factors k (default `0.01 0.25 4 100`)
+- `--world-scales`: MR4 scale factors k (default `0.01 0.0078125 0.25 4 100 128`; powers of two are also checked for exact equality)
 - `--n-gaussians-min/max`, `--width/--height`, `--n-cameras`
 - `--mr1-backgrounds`: also run MR1 with a background color set, to probe gsplat issue [#764](https://github.com/nerfstudio-project/gsplat/issues/764)
 - `--skip-repro`: skip the standalone issue #764 / [#630](https://github.com/nerfstudio-project/gsplat/issues/630) reproduction checks
@@ -33,11 +33,11 @@ Useful flags (`--help` for the full list):
 Outputs (next to `--out`): `*_results.csv` (per-scene MR results), `*_repro.json`
 (issue reproduction outcomes), `*_summary.json` (aggregate D_max/D_MAE stats and per-mode verdict counts).
 
-Tolerances (max abs pixel difference) are set in `gsplat_mt/metrics.py`: 1e-4 for MR1 and MR4, exact equality for MR2, MR3 and MR5. MR4/MR5 values are initial. MR5 differences, and MR4 differences, in scenes with near-equal depths are reported as `tie_ambiguous`, not `violation`. For MR1 and MR4, a violation confined to at most 0.05% of pixels (2 pixels at 64x64) is reported as `isolated_discontinuity`: a single pixel crossing a rasterizer cutoff such as alpha < 1/255. The raw D_max and the per-image pixel count (`*_n_px_over`) are still recorded.
+Tolerances (max abs pixel difference) are set in `gsplat_mt/metrics.py`: 1e-4 for MR1 and MR4, exact equality for MR2, MR3 and MR5. MR4/MR5 values are initial. MR5 differences, and MR4 differences, in scenes with near-equal depths are reported as `tie_ambiguous`, not `violation`. For MR1 and MR4, a violation confined to at most 0.05% of pixels (2 pixels at 64x64) is reported as `isolated_discontinuity`: a single pixel crossing a rasterizer cutoff such as alpha < 1/255; it must also have D_max at most 4e-3, the most one such cutoff flip can change a pixel. The raw D_max and the per-image pixel count (`*_n_px_over`) are still recorded.
 
 Each scene also records visibility: `coverage_cam0`/`coverage_mean` (fraction of pixels with alpha > 0), `opaque_frac_cam0`/`opaque_frac_mean` (alpha > 0.99), `n_empty_cams`, and `n_visible_cam0`/`n_visible_any` (Gaussians surviving gsplat's culling). A `pass` on a render that draws nothing (camera 0 empty; for MR2, every camera empty) is reported as `vacuous_pass`.
 
-Each of MR3, MR4 and MR5 also runs a fault-injected variant (`mr3_xyzwbug`, `mr4_bug`, `mr5_bug`), where `violation` means the injected bug was detected.
+MR4 also records `mr4_exact_verdict`: over the power-of-two factors, where scaling is exact in binary, the two renders must be identical (tolerance 0, never relabeled). Each of MR3, MR4 and MR5 also runs a fault-injected variant (`mr3_xyzwbug`, `mr4_bug`, `mr5_bug`), where `violation` means the injected bug was detected.
 
 ## Large-scale run
 
@@ -53,6 +53,8 @@ Each scene samples its own configuration (Gaussian count 10-5000, scene radius, 
 ```bash
 sbatch soc-cluster.sh        # all scene modes, default settings
 sbatch soc-cluster-large.sh  # large-scale randomized study
+sbatch soc-cluster-diagnose.sh  # MR4 bisection of the worst pixel in five scenes
+sbatch soc-cluster-diagnose-further.sh # study rerun + tie probe + bisection of every remaining MR1/MR4 finding
 sbatch soc-cluster-xl.sh     # same runner, 100,000 scenes (the first 2000 equal the large-scale run)
 ```
 
@@ -66,4 +68,6 @@ Each requests a single GPU, activates the `gsplat` conda env, and installs depen
 - `gsplat_mt/repro_issues.py` -- reproductions of gsplat issues #764 and #630
 - `gsplat_mt/run_preliminary.py` -- CLI runner
 - `gsplat_mt/run_large_scale.py` -- randomized-configuration runner (reuses `run_preliminary.run_one_scene`)
-- `gsplat_mt/diagnose_mr4.py` -- per-pixel MR4 diagnosis for one scene
+- `gsplat_mt/diagnose_mr4.py` -- per-pixel MR4 diagnosis for one scene; `--bisect` finds the Gaussians behind one pixel
+- `gsplat_mt/diagnose_mr1.py` -- the same bisection for MR1 (packed vs unpacked)
+- `gsplat_mt/probe_ties.py` -- how gsplat orders Gaussians with equal depths
