@@ -53,6 +53,7 @@ Each scene samples its own configuration (Gaussian count 10-5000, scene radius, 
 ```bash
 sbatch soc-cluster.sh        # all scene modes, default settings
 sbatch soc-cluster-large.sh  # large-scale randomized study
+sbatch soc-cluster-xl.sh     # same runner, 100,000 scenes (the first 2000 equal the large-scale run)
 ```
 
 Each requests a single GPU, activates the `gsplat` conda env, and installs dependencies.
