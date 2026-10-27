@@ -258,7 +258,8 @@ def run_one_scene(
     if mr5.depth_tie and row["mr5_verdict"] == "violation":
         row["mr5_verdict"] = "tie_ambiguous"  # compositing order of tied depths is ambiguous
     # MR4 rounds every depth, so near-equal depths can swap order between the two renders.
-    if mr5.depth_tie and row["mr4_verdict"] in ("violation", "isolated_discontinuity"):
+    # Only a violation: an isolated one is already bounded to a single cutoff flip.
+    if mr5.depth_tie and row["mr4_verdict"] == "violation":
         row["mr4_verdict"] = "tie_ambiguous"
 
     # Fault injection: colors not permuted along with the other attributes.

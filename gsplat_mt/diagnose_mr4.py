@@ -237,8 +237,8 @@ def pick_pixel(diff, alpha0, alphak, tol, by):
     else:
         rel = rel_t_change(alpha0, alphak)
         usable = (diff > tol) & ((1 - alpha0) > 1e-4) & ((1 - alphak) > 1e-4)
-        if not usable.any():
-            return None
+        if not usable.any() or rel[usable].max() == 0:
+            return None  # no pixel over tol changed its final transmittance
         _, flat = torch.where(usable, rel, torch.zeros_like(rel)).flatten().max(0)
     return divmod(int(flat), diff.shape[1])
 
@@ -263,7 +263,8 @@ def bisect(scene, cam, k, tol=TOL, by="color", pixel=None, render_a=None, render
     if pixel is None:
         pixel = pick_pixel(diff, alpha0, alphak, tol, by)
     if pixel is None or diff.max().item() <= tol:
-        print(f"\nbisect at k={k:g}: nothing over tolerance; skipping")
+        why = "no over-tolerance pixel changed its final transmittance" if by == "T" and diff.max().item() > tol else "nothing over tolerance"
+        print(f"\nbisect at k={k:g}: {why}; skipping")
         return None
     y, x = pixel
     measure_t = by == "T"

@@ -102,13 +102,6 @@ For each scene's worst pixel (at k = 0.01), delta debugging removed Gaussians wh
 
 The `isolated_discontinuity` label, based only on pixel count, accepted a scene with D_max 5.5e-02, far above what one alpha-cutoff flip can produce. That scene is a depth-order flip of two nearly-tied Gaussians, as are the three violators. A label that also bounds the size of the difference (about 1/255) would not have accepted it. The violator/isolated split by pixel count therefore separates two different things only loosely: the violators are a depth swap of two large Gaussians that overlap many pixels, and a swap of two small ones can touch a single pixel and be labeled isolated.
 
-## Proposed changes (not implemented)
+## Follow-up
 
-- Add power-of-two factors to the MR4 sweep with an exact-zero tolerance. All four replayed scenes were exactly 0 there, so any difference would indicate a genuine scale-handling error, with no pixel-fraction judgment needed. Inexact factors would be informational.
-- Require the `isolated_discontinuity` label to also satisfy D_max of at most about 4e-3, a bound derived from the cutoff mechanism and not tuned to this data.
-
-## Pending
-
-- The seven MR1 single-pixel cases have not been diagnosed (bisection at k does not apply; the packed/unpacked pair would need its own script).
-- Bisection covered only the worst pixel of five scenes. The 85 MR4 isolated cases were not bisected, so how many are cutoff flips and how many depth swaps is unknown.
-- How gsplat's sort resolves equal depths, and the early-stop pattern in one violator.
+The two proposed oracle changes (exact-zero check on power-of-two factors, size bound on `isolated_discontinuity`) and the open diagnosis items (MR1 single-pixel cases, the MR4 isolated cases, equal-depth ordering, the early-stop pattern) are in `README_week11.md`. The depth-tie relabel above was narrowed there to `violation` only.
