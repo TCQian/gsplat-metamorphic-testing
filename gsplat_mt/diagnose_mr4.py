@@ -397,6 +397,7 @@ def main() -> int:
         help="results csv; with --where, bisect every matching scene at its mr4_worst_k (implies --bisect --large)",
     )
     p.add_argument("--where", type=str, default="mr4_verdict=isolated_discontinuity", help="column=value filter for --scenes-from")
+    p.add_argument("--every", type=int, default=1, help="with --scenes-from, bisect every K-th matching scene")
     p.add_argument("--mode", type=str, default=None, help="scene mode (not used with --large)")
     p.add_argument("--large", action="store_true", help="replay a run_large_scale.py scene")
     p.add_argument("--seed", type=int, default=None, help="default 0, or 1000 with --large")
@@ -420,7 +421,7 @@ def main() -> int:
     if a.scenes_from:
         a.large = True
         results = []
-        for idx, k in cases_from_csv(a.scenes_from, a.where):
+        for idx, k in cases_from_csv(a.scenes_from, a.where)[:: a.every]:
             mode, scene, cameras = load(a, idx)
             cam = cameras[0]
             print(f"scene {idx} [{mode}] n={scene.n} res={cam.width}x{cam.height} cameras={len(cameras)}")

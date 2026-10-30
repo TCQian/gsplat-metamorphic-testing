@@ -67,6 +67,7 @@ def main() -> int:
     p.add_argument("--scene-idx", type=int, default=None)
     p.add_argument("--scenes-from", type=str, default=None)
     p.add_argument("--where", type=str, default="mr1_verdict=isolated_discontinuity")
+    p.add_argument("--every", type=int, default=1, help="with --scenes-from, bisect every K-th matching scene")
     p.add_argument("--seed", type=int, default=None)
     p.add_argument("--by", choices=["color", "T"], default="color")
     a = p.parse_args()
@@ -75,7 +76,7 @@ def main() -> int:
     if a.scenes_from:
         col, val = a.where.split("=", 1)
         with open(a.scenes_from) as f:
-            idxs = [int(r["scene_idx"]) for r in csv.DictReader(f) if r.get(col) == val]
+            idxs = [int(r["scene_idx"]) for r in csv.DictReader(f) if r.get(col) == val][:: a.every]
     elif a.scene_idx is not None:
         idxs = [a.scene_idx]
     else:

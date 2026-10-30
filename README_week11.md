@@ -71,7 +71,40 @@ All 30 are the same cutoff flip: one Gaussian out of 1-4346 is enough to reprodu
 
 All 7 are the same cutoff flip between packed and unpacked: one Gaussian reproduces it, alpha at the pixel center is 0.003922 in both (0.003921 in one render for one case), transmittance changes by 3.9e-03, subset difference 5.9e-04 to 3.7e-03. The scenes have 1310-4854 Gaussians (`scale_huge` 3, `anisotropic` 3, `default` 1). It was not tested why the two code paths land on opposite sides of 1/255 in the last digits.
 
+### Extra-large run (100,000 scenes, `soc-cluster-xl.sh`)
+
+Same sampler and seed as the 2000-scene study, with the narrowed tie relabel. 43 minutes (median 19 ms per scene); no scene crashed and the run did not abort. The first 2000 scenes reproduce the 2000-scene results exactly under the narrowed relabel: MR4 84 `isolated_discontinuity`, 4 `tie_ambiguous`, 0 `violation`.
+
+| Relation | Result over 100,000 scenes |
+| --- | --- |
+| MR1 packed vs unpacked | 98,044 pass, 532 `isolated_discontinuity`, 1,424 `vacuous_pass`; max D_max 3.8e-03 |
+| MR2 batched vs individual | 99,559 pass, 441 `vacuous_pass`; D_max exactly 0 |
+| MR3 covariance (correct) | 98,576 pass, 1,424 `vacuous_pass`; D_max exactly 0 |
+| MR4 exact (power-of-two k) | 98,576 pass, 1,424 `vacuous_pass`; D_max exactly 0 |
+| MR4 world scale | 93,794 pass, 4,643 `isolated_discontinuity`, 134 `tie_ambiguous`, 5 `violation`, 1,424 `vacuous_pass`; max D_max 0.15 |
+| MR5 permutation | 97,807 pass, 769 `tie_ambiguous`, 1,424 `vacuous_pass`; no `violation` |
+
+- **Bit-exact relations:** MR2, MR3 and the MR4 power-of-two check are exactly 0 in every non-empty scene, up to 5000 Gaussians, 8 cameras, 256x256.
+- **MR5:** 19,748 of the 98,576 non-empty scenes (20%) have near-equal depths, 15,955 of them with 1000+ Gaussians. The permutation changes the image in 769 of the tied scenes (3.9%) and in none of the 78,828 untied scenes.
+- **MR1:** no scene is over the 4e-03 bound; the 532 isolated cases have at most 4 pixels over tolerance (495 have 1), include an N = 1 scene, and span `scale_huge` (256), `anisotropic` (122), `default` (72), `opacity_extreme` (44), `wide_spread` (21), `far_clipped` (16) and `single` (1).
+- **MR4 isolated:** 4,643 scenes, largest D_max 3.92e-03 (the cutoff bound), never more than 0.049% of the pixels.
+- **MR4 `tie_ambiguous`:** 134 scenes, all tied, 111 with 1000+ Gaussians; 49 have D_max above 4e-03. These are violations by pixel count or size inside a tied scene, not individually diagnosed in this run.
+- **Fault injections:** MR3 `xyzw_bug` and MR4 `no_translation` are detected in every non-empty scene. MR5 `misaligned` did not fire in 12,440 scenes (12.4%), about the share of `single` (N = 1) scenes, where the permutation is the identity.
+- **Correlations (Spearman):** MR1 D_max with overlap 0.79, opaque fraction 0.70, coverage 0.69, N 0.49; MR4 D_max with N 0.45, mean scale -0.42, overlap -0.35. Same pattern and caveats as in Week 10.
+
+**Five MR4 violations in scenes with no depth tie.** MR5 passes on all five, so the tie flag does not explain them.
+
+| Mode | N | Pixels over tolerance | D_max | Worst k |
+| --- | --- | --- | --- | --- |
+| `anisotropic` | 17 | 9 | 1.9e-03 | 100 |
+| `opacity_extreme` | 173 | 1 | 7.1e-03 | 100 |
+| `anisotropic` | 27 | 50 | 2.3e-04 | 0.01 |
+| `anisotropic` | 912 | 280 | 2.0e-03 | 100 |
+| `opacity_extreme` | 371 | 2 | 9.3e-03 | 100 |
+
+Two are single or double pixels above the 4e-03 bound (so not a lone cutoff flip), and two have 50 and 280 pixels with a small D_max. Their cause is not known. Violations occur at about 0.006% of untied scenes (5 of 78,828) and 0.68% of tied scenes (134 of 19,748), about 100 times higher, so ties account for most MR4 violations; but five untied cases show that a tie is not the only cause, and some of the 134 tied ones may not involve a tie either (the tie flag is per scene, and 54 of the 58 tied scenes in the 2000-scene run were plain cutoff flips).
+
 ### Not done
 
-- The 100,000-scene run (`soc-cluster-xl.sh`) has not been run with the new oracle.
-- The tie relabel narrowing was applied after this run and has not been run on the cluster.
+- The five untied violations, a sample of the 134 tied violations, and samples of the MR1 and MR4 isolated cases at this scale have not been bisected. `soc-cluster-diagnose-xl.sh` does this (all 5, every second tied scene, every 40th MR4 isolated scene, every 10th MR1 isolated scene) and has not been run.
+- The tie relabel narrowing is confirmed only through the 100,000-scene run's verdict counts, not through a pixel-level check of every relabeled scene.
