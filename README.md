@@ -57,6 +57,7 @@ sbatch soc-cluster.sh        # all scene modes, default settings
 sbatch soc-cluster-large.sh  # large-scale randomized study
 sbatch soc-cluster-diagnose.sh  # MR4 bisection of the worst pixel in five scenes
 sbatch soc-cluster-diagnose-further.sh # study rerun + tie probe + bisection of every remaining MR1/MR4 finding
+sbatch soc-cluster-diagnose-open.sh # targeted diagnoses of the open cases, plus packed vs unpacked projection outputs for MR1 cutoff flips
 sbatch soc-cluster-diagnose-xl.sh # bisect samples of the 100,000-scene findings
 sbatch soc-cluster-xl.sh     # same runner, 100,000 scenes (the first 2000 equal the large-scale run)
 ```
@@ -73,4 +74,6 @@ Each requests a single GPU, activates the `gsplat` conda env, and installs depen
 - `gsplat_mt/run_large_scale.py` -- randomized-configuration runner (reuses `run_preliminary.run_one_scene`)
 - `gsplat_mt/diagnose_mr4.py` -- per-pixel MR4 diagnosis for one scene; `--bisect` finds the Gaussians behind one pixel
 - `gsplat_mt/diagnose_mr1.py` -- the same bisection for MR1 (packed vs unpacked)
+- `gsplat_mt/diagnose_open_items.py` -- five targeted diagnoses of the cases left open after the 100,000-scene run (smooth difference, a violation whose worst pixel is a cutoff flip, a 280-pixel cutoff flip, early stop, alpha-only MR1 differences)
+- `gsplat_mt/diagnose_mr1_inputs.py` -- compares packed and unpacked projection outputs bit for bit for the Gaussian behind an MR1 cutoff flip
 - `gsplat_mt/probe_ties.py` -- how gsplat orders Gaussians with equal depths

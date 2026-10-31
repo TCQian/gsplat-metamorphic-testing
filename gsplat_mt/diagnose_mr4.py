@@ -234,6 +234,8 @@ def pick_pixel(diff, alpha0, alphak, tol, by):
     """Worst pixel by color difference, or by relative transmittance change among pixels over tol."""
     if by == "color":
         _, flat = diff.flatten().max(0)
+    elif by == "alpha":
+        _, flat = (alphak - alpha0).abs().flatten().max(0)
     else:
         rel = rel_t_change(alpha0, alphak)
         usable = (diff > tol) & ((1 - alpha0) > 1e-4) & ((1 - alphak) > 1e-4)
@@ -262,8 +264,9 @@ def bisect(scene, cam, k, tol=TOL, by="color", pixel=None, render_a=None, render
     diff = (rgbk - rgb0).abs().amax(-1)
     if pixel is None:
         pixel = pick_pixel(diff, alpha0, alphak, tol, by)
-    if pixel is None or diff.max().item() <= tol:
-        why = "no over-tolerance pixel changed its final transmittance" if by == "T" and diff.max().item() > tol else "nothing over tolerance"
+    top = (alphak - alpha0).abs().max().item() if by == "alpha" else diff.max().item()
+    if pixel is None or top <= tol:
+        why = "no over-tolerance pixel changed its final transmittance" if by == "T" and top > tol else "nothing over tolerance"
         print(f"\nbisect at k={k:g}: {why}; skipping")
         return None
     y, x = pixel
@@ -272,11 +275,13 @@ def bisect(scene, cam, k, tol=TOL, by="color", pixel=None, render_a=None, render
     def measure(ra, aa, rb, ab):
         if measure_t:
             return rel_t_change(aa[y, x], ab[y, x]).item()
+        if by == "alpha":
+            return (ab[y, x] - aa[y, x]).abs().item()
         return (rb[y, x] - ra[y, x]).abs().max().item()
 
     m0 = measure(rgb0, alpha0, rgbk, alphak)
     print(
-        f"\nbisect at k={k:g}: pixel (y={y}, x={x}) chosen by {'transmittance change' if measure_t else 'color'}: "
+        f"\nbisect at k={k:g}: pixel (y={y}, x={x}) chosen by {'transmittance change' if measure_t else by}: "
         f"color diff={diff[y, x].item():.3e}, relative change in T={rel_t_change(alpha0[y, x], alphak[y, x]).item():.2e}, "
         f"T base={1 - alpha0[y, x].item():.4e} scaled={1 - alphak[y, x].item():.4e}"
     )
@@ -294,7 +299,7 @@ def bisect(scene, cam, k, tol=TOL, by="color", pixel=None, render_a=None, render
     keep, evals = ddmin(list(range(scene.n)), test)
     print(
         f"  smallest set found: {len(keep)} Gaussian(s) of {scene.n} "
-        f"(kept while {'relative T change' if measure_t else 'diff'} at the pixel stays >= {thresh:.2e}); {evals} test renders"
+        f"(kept while {'relative T change' if measure_t else 'alpha diff' if by == 'alpha' else 'diff'} at the pixel stays >= {thresh:.2e}); {evals} test renders"
     )
     sub = subset(scene, torch.tensor(keep, device=device))
     ra, aa, ma = render_a(sub, True)
@@ -344,7 +349,14 @@ def bisect(scene, cam, k, tol=TOL, by="color", pixel=None, render_a=None, render
         note = "neither a transmittance change nor a near-tied pair"
         cls = "unclassified"
     print(f"  CLASS: {cls} ({len(keep)} Gaussians, rel T change {rel_t:.1e}, diff {(rb[y, x] - ra[y, x]).abs().max().item():.1e}): {note}")
-    return {"class": cls, "n_keep": len(keep), "rel_t": rel_t, "min_gap": min(gaps) if gaps else None}
+    return {
+        "class": cls,
+        "n_keep": len(keep),
+        "rel_t": rel_t,
+        "min_gap": min(gaps) if gaps else None,
+        "keep": keep,
+        "pixel": (y, x),
+    }
 
 
 def load(a, scene_idx):
@@ -412,7 +424,7 @@ def main() -> int:
     p.add_argument("--bisect-k", type=float, default=0.01)
     p.add_argument(
         "--by",
-        choices=["color", "T"],
+        choices=["color", "T", "alpha"],
         default="color",
         help="pixel to bisect: worst color difference, or largest relative change in final transmittance",
     )
