@@ -104,7 +104,27 @@ Same sampler and seed as the 2000-scene study, with the narrowed tie relabel. 43
 
 Two are single or double pixels above the 4e-03 bound (so not a lone cutoff flip), and two have 50 and 280 pixels with a small D_max. Their cause is not known. Violations occur at about 0.006% of untied scenes (5 of 78,828) and 0.68% of tied scenes (134 of 19,748), about 100 times higher, so ties account for most MR4 violations; but five untied cases show that a tie is not the only cause, and some of the 134 tied ones may not involve a tie either (the tie flag is per scene, and 54 of the 58 tied scenes in the 2000-scene run were plain cutoff flips).
 
+### Bisection of the 100,000-scene findings (`soc-cluster-diagnose-xl.sh`)
+
+Same `CLASS:` rule as above, on the five untied violations, every second `tie_ambiguous` scene (67 of 134), every 40th MR4 `isolated_discontinuity` scene (117 of 4,643) and every 10th MR1 `isolated_discontinuity` scene (54 of 532). Only samples were run; the counts below are of those samples.
+
+| Group (sampled) | Single-Gaussian cutoff flip | Depth-order flip | Early stop | Other |
+| --- | --- | --- | --- | --- |
+| MR4 untied violations (5 of 5) | 2 | 0 | 2 | 1 |
+| MR4 `tie_ambiguous` (67) | 5 | 60 | 2 | 0 |
+| MR4 `isolated_discontinuity` (117) | 115 | 1 | 1 | 0 |
+| MR1 `isolated_discontinuity` (54) | 52 | 0 | 0 | 2 not bisected (see below) |
+
+- **Depth-order flips are the tied violations.** In 60 of 67 sampled tied scenes two Gaussians reproduce the pixel, final transmittance changes by at most 6.2e-06, and their relative depth gap is at most 1.6e-07 (0 in 25 of them). D_max of the pair alone reaches 0.21.
+- **Early-stop flips can exceed the cutoff bound.** Two untied violations (both `opacity_extreme`, D_max 7.1e-03 and 9.3e-03) need 20 and 14 Gaussians; in the first, final T is 1.0002e-04 in one render and 7.7e-03 in the other, so a Gaussian with alpha near 0.99 was blended in one render and not in the other at the 1e-4 early-stop threshold. Skipping it changes the color by up to color x alpha x T with T up to 1e-4 / (1 - alpha), about 0.1 at gsplat's 0.999 alpha clamp, so the 4e-03 bound does not cover this mechanism. The same pattern appears in 2 sampled tied scenes (one with D_max 7.7e-02) and 1 sampled isolated scene (D_max 2.4e-04).
+- **Cutoff flips can touch many pixels.** One untied violation (N = 912, 280 pixels over tolerance, k = 100) is reproduced by a single Gaussian whose alpha at the pixel center is 0.003906. Pixel count, not size, makes it a `violation`; that all 280 pixels come from that Gaussian was not checked. Another (N = 17, 9 pixels, D_max 1.9e-03) bisects to a single cutoff flip at the worst pixel, yet is a `violation`, which the saved columns do not explain (the verdict also looks at the alpha image and every k).
+- **One difference is none of these.** An untied `anisotropic` violation (N = 27, k = 0.01, 50 pixels, D_max 2.3e-04): one Gaussian with alpha 0.31 at the pixel reproduces it, final transmittance changes by only 6.4e-04, and nothing is blended or skipped. It is a smooth numerical difference about a thousand times larger than float32 rounding; its cause is not known.
+- **MR1:** 52 of 54 sampled cases are the same single-Gaussian cutoff flip as before. For 2, no rgb pixel is over tolerance (the over-tolerance image is alpha), which the tool does not bisect.
+- **Size bound is exact for cutoff flips, not for the other mechanisms.** The sampled single-Gaussian flips all have a subset difference of at most 3.9e-03.
+
 ### Not done
 
-- The five untied violations, a sample of the 134 tied violations, and samples of the MR1 and MR4 isolated cases at this scale have not been bisected. `soc-cluster-diagnose-xl.sh` does this (all 5, every second tied scene, every 40th MR4 isolated scene, every 10th MR1 isolated scene) and has not been run.
-- The tie relabel narrowing is confirmed only through the 100,000-scene run's verdict counts, not through a pixel-level check of every relabeled scene.
+- The groups above were sampled, not exhausted; the unsampled 4,526 isolated, 67 tied and 478 MR1 cases were not bisected.
+- Alpha-image differences are not bisected (`diagnose_mr1.py` and `diagnose_mr4.py` work on the rgb image).
+- The cause of the smooth difference in the `anisotropic` N = 27 scene, and why the N = 17 violation is a `violation`, are open.
+- The tie relabel narrowing is confirmed only through the 100,000-scene run's verdict counts and these samples.
