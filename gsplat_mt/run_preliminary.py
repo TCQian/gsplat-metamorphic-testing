@@ -197,10 +197,14 @@ def run_one_scene(
     if mr2.error is not None:
         row["mr2_max_d_max"] = None
         row["mr2_mean_d_mae"] = None
+        row["mr2_mean_d_ssim"] = None
         row["mr2_error"] = mr2.error
     else:
         row["mr2_max_d_max"] = max(d.d_max for d in mr2.per_camera)
         row["mr2_mean_d_mae"] = sum(d.d_mae for d in mr2.per_camera) / len(
+            mr2.per_camera
+        )
+        row["mr2_mean_d_ssim"] = sum(d.d_ssim for d in mr2.per_camera) / len(
             mr2.per_camera
         )
         row["mr2_error"] = None
@@ -434,18 +438,24 @@ def main(argv=None) -> int:
     numeric_keys = [
         "mr1_rgb_d_max",
         "mr1_rgb_d_mae",
+        "mr1_rgb_d_ssim",
         "mr2_max_d_max",
         "mr2_mean_d_mae",
+        "mr2_mean_d_ssim",
         "mr3_correct_rgb_d_max",
         "mr3_correct_rgb_d_mae",
+        "mr3_correct_rgb_d_ssim",
         "mr3_xyzwbug_rgb_d_max",
         "mr3_xyzwbug_rgb_d_mae",
+        "mr3_xyzwbug_rgb_d_ssim",
         "mr4_rgb_d_max",
         "mr4_rgb_d_mae",
+        "mr4_rgb_d_ssim",
         "mr4_exact_d_max",
         "mr4_bug_rgb_d_max",
         "mr5_rgb_d_max",
         "mr5_rgb_d_mae",
+        "mr5_rgb_d_ssim",
         "mr5_bug_rgb_d_max",
         "time_s",
     ]

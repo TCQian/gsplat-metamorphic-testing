@@ -3,6 +3,12 @@
 D_max / D_MAE plus NaN/Inf/shape checks. A NaN/Inf mismatch between the two
 images counts as an infinite difference rather than being dropped by max().
 Tolerances come from the preliminary study's measured noise floor.
+
+Also computes D_SSIM (`ssim`), a windowed structural-similarity score: unlike
+D_max/D_MAE it is local and averaged, so it stays near 1.0 for the single-pixel
+float noise this project already tolerates while dropping for changes spread
+over a region, even at the same D_max. Diagnostic only for now -- recorded on
+every ImageDiff but not yet consulted by `verdict()`.
 """
 
 from __future__ import annotations
@@ -32,11 +38,19 @@ ISOLATED_PIXEL_FRAC = 5e-4
 # color x alpha x T <= 1/255 = 3.9e-3 (colors are in [0, 1]).
 ISOLATED_MAX_D_MAX = 4e-3
 
+# SSIM window (Wang et al. 2004's standard 11x11 Gaussian, sigma 1.5); also
+# gsplat/3DGS's own domain-standard quality metric alongside PSNR/LPIPS.
+# Assumes inputs are in [0, 1] (rendered colors and alpha both are).
+_SSIM_WINDOW = 11
+_SSIM_SIGMA = 1.5
+_SSIM_DATA_RANGE = 1.0
+
 
 @dataclass
 class ImageDiff:
     d_max: float
     d_mae: float
+    d_ssim: float
     has_nan: bool
     has_inf: bool
     shape: Tuple[int, ...]
@@ -47,10 +61,73 @@ class ImageDiff:
         return {
             f"{prefix}_d_max": self.d_max,
             f"{prefix}_d_mae": self.d_mae,
+            f"{prefix}_d_ssim": self.d_ssim,
             f"{prefix}_has_nan": self.has_nan,
             f"{prefix}_has_inf": self.has_inf,
             f"{prefix}_n_px_over": self.n_px_over,
         }
+
+
+def _gaussian_kernel(window: int, sigma: float, device, dtype) -> Tensor:
+    coords = torch.arange(window, device=device, dtype=dtype) - (window - 1) / 2
+    g = torch.exp(-(coords**2) / (2 * sigma**2))
+    return g / g.sum()
+
+
+def _ssim_global(a: Tensor, b: Tensor, data_range: float) -> float:
+    """Unwindowed SSIM over the whole image; used only when it is smaller than the window."""
+    c1 = (0.01 * data_range) ** 2
+    c2 = (0.03 * data_range) ** 2
+    mu_a, mu_b = a.mean(), b.mean()
+    var_a, var_b = a.var(unbiased=False), b.var(unbiased=False)
+    cov_ab = ((a - mu_a) * (b - mu_b)).mean()
+    val = ((2 * mu_a * mu_b + c1) * (2 * cov_ab + c2)) / (
+        (mu_a**2 + mu_b**2 + c1) * (var_a + var_b + c2)
+    )
+    return val.item()
+
+
+def ssim(a: Tensor, b: Tensor, data_range: float = _SSIM_DATA_RANGE) -> float:
+    """Mean structural similarity (Wang et al. 2004) between (..., H, W, C) images.
+
+    1.0 is identical; it falls off with locally-windowed differences in
+    luminance, contrast and structure rather than raw per-pixel magnitude. See
+    the module docstring for why that makes it a useful complement to
+    D_max/D_MAE. NaN/Inf in either image propagate into a NaN score, same as
+    the `has_nan`/`has_inf` flags already carry that information.
+    """
+    # float64: a float32 mean near 1.0 resolves only ~6e-8, about the size of 1 - SSIM for a
+    # single cutoff-flip pixel (~1e-7), so float32 would hide the isolated cases.
+    a32, b32 = a.detach().double(), b.detach().double()
+    *_, h, w, c = a32.shape
+    a32 = a32.reshape(-1, h, w, c).permute(0, 3, 1, 2)  # [N,C,H,W]
+    b32 = b32.reshape(-1, h, w, c).permute(0, 3, 1, 2)
+
+    window = min(_SSIM_WINDOW, h, w)
+    if window % 2 == 0:
+        window -= 1
+    if window < 3:
+        return _ssim_global(a32, b32, data_range)
+
+    kernel_1d = _gaussian_kernel(window, _SSIM_SIGMA, a32.device, a32.dtype)
+    kernel = (kernel_1d[:, None] * kernel_1d[None, :]).expand(c, 1, window, window).contiguous()
+    pad = window // 2
+
+    def blur(x: Tensor) -> Tensor:
+        return torch.nn.functional.conv2d(x, kernel, padding=pad, groups=c)
+
+    mu_a, mu_b = blur(a32), blur(b32)
+    mu_a2, mu_b2, mu_ab = mu_a * mu_a, mu_b * mu_b, mu_a * mu_b
+    var_a = blur(a32 * a32) - mu_a2
+    var_b = blur(b32 * b32) - mu_b2
+    cov_ab = blur(a32 * b32) - mu_ab
+
+    c1 = (0.01 * data_range) ** 2
+    c2 = (0.03 * data_range) ** 2
+    ssim_map = ((2 * mu_ab + c1) * (2 * cov_ab + c2)) / (
+        (mu_a2 + mu_b2 + c1) * (var_a + var_b + c2)
+    )
+    return ssim_map.mean().item()
 
 
 def compare_images(a: Tensor, b: Tensor, tol: float = 0.0) -> ImageDiff:
@@ -64,6 +141,7 @@ def compare_images(a: Tensor, b: Tensor, tol: float = 0.0) -> ImageDiff:
     return ImageDiff(
         d_max=diff.max().item(),
         d_mae=diff.mean().item(),
+        d_ssim=ssim(a32, b32),
         has_nan=bool(torch.isnan(a32).any() or torch.isnan(b32).any()),
         has_inf=bool(torch.isinf(a32).any() or torch.isinf(b32).any()),
         shape=tuple(a.shape),

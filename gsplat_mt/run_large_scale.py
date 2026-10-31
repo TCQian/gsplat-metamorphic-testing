@@ -271,10 +271,15 @@ def main(argv=None) -> int:
 
     numeric_keys = [
         "mr1_rgb_d_max",
+        "mr1_rgb_d_ssim",
         "mr2_max_d_max",
+        "mr2_mean_d_ssim",
         "mr3_correct_rgb_d_max",
+        "mr3_correct_rgb_d_ssim",
         "mr4_rgb_d_max",
+        "mr4_rgb_d_ssim",
         "mr5_rgb_d_max",
+        "mr5_rgb_d_ssim",
         "time_s",
     ]
     summary = {

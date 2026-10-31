@@ -114,7 +114,9 @@ def repro_issue_630(
 
     detected = diff_bug.d_max > 10 * max(diff_correct.d_max, 1e-8)
     detail = (
-        f"correct-covar D_max={diff_correct.d_max:.3e} D_mae={diff_correct.d_mae:.3e} | "
-        f"xyzw-bug-covar D_max={diff_bug.d_max:.3e} D_mae={diff_bug.d_mae:.3e}"
+        f"correct-covar D_max={diff_correct.d_max:.3e} D_mae={diff_correct.d_mae:.3e} "
+        f"D_ssim={diff_correct.d_ssim:.6f} | "
+        f"xyzw-bug-covar D_max={diff_bug.d_max:.3e} D_mae={diff_bug.d_mae:.3e} "
+        f"D_ssim={diff_bug.d_ssim:.6f}"
     )
     return ReproResult("issue_630_covar_quat_convention", detected, detail)
