@@ -129,15 +129,85 @@ Same `CLASS:` rule as above, on the five untied violations, every second `tie_am
 
 **The N = 17 violation comes from the alpha image.** At k = 100 the rgb image has 9 pixels over tolerance (limit 32) but the alpha image has 47, so it fails the pixel-count rule. At k = 0.01 both images pass the rule (24 and 4 pixels). Every other factor, including all power-of-two ones, is exactly 0.
 
-**The smooth difference (N = 27, `anisotropic`, k = 0.01).** One Gaussian whose projected 2D shape has an axis ratio of about 103. Its conic differs between the base and the scaled render by 24,610 ULP (0.911904 vs 0.910438 for the first entry); `means2d` differs by 1 ULP. A float64 reference projection (my own re-implementation of gsplat's EWA projection) gives the same conic for both renders, as scale invariance requires, and the two float32 renders are 1.2e-03 (base) and 3.9e-04 (scaled) away from it, against about 1e-07 for the means. Because the true value is scale-invariant, at least one render must be off by at least 8e-04 whatever the reference formula, and the alpha at the pixel differs accordingly (0.306468 vs 0.306767; reference 0.306828 for both). The size of the error fits a covariance with a condition number around 1e4 (axis ratio squared) and float32 relative precision of about 6e-08, which is a consistent explanation; which operation loses the precision was not isolated.
+**The smooth difference (N = 27, `anisotropic`, k = 0.01).** One Gaussian whose projected 2D shape has an axis ratio of about 103. Its conic differs between the base and the scaled render by 24,610 ULP (0.911904 vs 0.910438 for the first entry); `means2d` differs by 1 ULP. A float64 reference projection (my own re-implementation of gsplat's EWA projection) gives the same conic for both renders, as scale invariance requires, and the two float32 renders are 1.2e-03 (base) and 3.9e-04 (scaled) away from it, against about 1e-07 for the means. Because the true value is scale-invariant, at least one render must be off by at least 8e-04 whatever the reference formula, and the alpha at the pixel differs accordingly (0.306468 vs 0.306767; reference 0.306828 for both). The size of the error fits a covariance with a condition number around 1e4 (axis ratio squared) and float32 relative precision of about 6e-08, which is a consistent explanation; the root-cause section below measures how this scales with the conditioning of the covariance.
 
 **MR1 packed vs unpacked: the projection outputs already differ.** In all 59 bisected MR1 cutoff-flip scenes (7 from the 2000-scene study, 52 from the 100,000-scene sample), the kept Gaussian's conic differs between the paths, by 1 to 7 ULP in 51 of them and by 12 to 10,592 ULP in the other 8, while `means2d`, `opacities`, `depths` and `radii` are bit-identical. Over every Gaussian visible in both paths, `means2d`, `opacities`, `depths` and `radii` never differ (0 of 113,817), and the conic differs in 58,873 (52%); the largest per-scene difference is 310 ULP at the median scene and 48,925 ULP at most. So the two projection kernels compute the conic with different rounding, and the conic is the only quantity that differs. Recomputing the kept Gaussian's alpha at the pixel center in float32 from each path's own values predicts the blended/skipped pattern of the two renders in 42 of 59 scenes (for example 0.00392157 vs 0.00392156 around 1/255 = 0.00392157); at the pixel corner it predicts it in none, which fits gsplat evaluating at the pixel center. In the other 17 scenes the recomputed alpha is within 2.7e-07 (7e-05 relative) of the threshold but on the wrong side for at least one path; that is a larger miss than float32 rounding of the final value, so the recomputation is not exact enough to settle those, and why it misses was not investigated.
 
 **Alpha-only MR1 cases (all 6 in the 100,000-scene findings).** Five are single-Gaussian cutoff flips visible only in the alpha image (alpha 0.003922; the alpha image differs by up to 3.7e-04 while rgb stays under 1e-4). One is an early stop: 41 Gaussians, final T 3.3e-04 in one render and 1.0e-04 in the other, rgb difference 9.9e-05. So the early stop also occurs between packed and unpacked.
 
-### Not done
+### Root causes (`soc-cluster-root-cause.sh`)
 
-- The groups in the bisection table were sampled, not exhausted; the unsampled 4,526 isolated, 67 tied and 478 MR1 cases were not bisected.
-- Which operation in the projection loses precision for strongly anisotropic Gaussians (item above), and the axis ratio of the 280-pixel Gaussian, were not isolated.
-- The replay at the early-stop threshold does not reproduce the kernel in every scene (above).
-- The tie relabel narrowing is confirmed only through the 100,000-scene run's verdict counts and these samples.
+**Why conics differ: conditioning amplifies last-bit differences.** gsplat computes a conic as `glm::inverse` of the blurred 2x2 projected covariance, and the unpacked (`ProjectionEWA3DGSFused.cu`) and packed (`ProjectionEWA3DGSPacked.cu`) kernels run the same source for it (`persp_proj`, `add_blur`, `glm::inverse`). Inverting a 2x2 matrix multiplies a relative input rounding of about 6e-8 by its condition number kappa, the ratio of its larger to smaller eigenvalue (the squared axis ratio). Measured over 77,830 Gaussians in 200 scenes, the conic distance between two renders in ULP, per kappa decade (median / 90th percentile):
+
+| kappa | n | packed vs unpacked | scales moved by ONE float32 step | base vs scaled k = 0.01 | k = 0.25 (exact) |
+| --- | --- | --- | --- | --- | --- |
+| 1-10 | 76,440 | 0 / 3 | 3 / 10 | 4 / 12 | 0 / 0 |
+| 10-100 | 1,377 | 1 / 7 | 4 / 14 | 5 / 17 | 0 / 0 |
+| 100-1000 | 12 | 28 / 71 | 51 / 301 | 66 / 229 | 0 / 0 |
+| 1000-10,000 | 1 | 0 | 115 | 450 | 0 |
+
+So a last-bit difference of any origin (here: the smallest possible change to the scales) produces conic differences of the same size and the same growth with kappa as the packed-vs-unpacked and the world-scale differences, and none at all when the scaling is exact (k = 0.25). The relative error of the float32 conic against a float64 reference is 3.7e-07 at the median for kappa below 10 and up to about 2e-05 at 100-1000 (for both paths alike). The maxima of 6e4 to 8e5 ULP in the lowest kappa decade are not shown to be anything but an off-diagonal conic entry close to zero, whose ULP distance is huge.
+
+**The 280-pixel Gaussian has kappa = 49,431 (axis ratio 222).** Its float32 conic is 2.5e-04 (unpacked) and 1.4e-03 (scaled, k = 100) away from the float64 reference, with 17,263 ULP between base and scaled and 299 ULP between packed and unpacked: the order of kappa x 6e-8 (3e-03). That explains why this one Gaussian changes the alpha of 280 pixels by more than the tolerance, with a cutoff flip at only one of them.
+
+**The two kernels diverge in `covarW2C`, from the same source.** The unpacked and packed kernels run identical source (`quat_scale_to_covar_preci`, `covarW2C`, `persp_proj`, `add_blur`, `glm::inverse`), and the built extension (`-O3 -use_fast_math`) has the same number of floating-point instructions in both (170 `FFMA`, 136 `FMUL`, 38 `FADD`) in a different order and operand placement. To find where the bits first differ (`gsplat_mt/isolate_projection_stage.py`, 100 scenes, 26,302 Gaussians, 45.8% of conics differ between the real renders):
+
+| Experiment | Result |
+| --- | --- |
+| Rebuild the two real `.cu` files unmodified, each as its own translation unit with gsplat's flags | conics equal gsplat's own in 100.0% (both kernels): the rebuild is faithful |
+| Same, plus a store of the blurred 2D covariance and determinant | still 100.0% faithful; the stored values differ between the kernels in 61.7%; where they are bit-identical, the conics never differ (0 cases), so `glm::inverse` adds nothing of its own |
+| Same, plus a store of the 2D covariance before the blur | still 100.0% faithful; differs in 65.3% (per entry: xx 679, xy 7,040, yx 8,647, yy 8,844 of 26,302) |
+| Same, plus a store of the world covariance or the camera-space covariance | not faithful: world covariance, 87% (fused) and 48% (packed) of conics equal gsplat's; camera-space covariance, 67% (fused; packed unaffected). A stored intermediate cannot be fused away, so the store changes the compiled arithmetic. Those points were not used for comparing the kernels |
+| Both real kernels given the same precomputed covariance (skipping `quat_scale_to_covar_preci`) | 45.8% of conics still differ (identical count to the run with quats and scales) |
+| Both real kernels with the camera rotation set to the identity (so `covarW2C` is exact), precomputed covariance | 0 of 33,926 conics differ; with the scene's own rotation, 45.8% do |
+
+The identity-rotation result isolates the step: when `covarW2C = R * covarW * transpose(R)` is exact, `persp_proj`, `add_blur` and `glm::inverse` give bit-identical results in the two kernels, so none of them is the origin; with a general rotation the two kernels already disagree in the camera-space covariance, and everything downstream inherits and amplifies that. `covarW2C` is two chained 3x3 matrix products, each entry a sum of three products. How a compiler pairs those products in fused multiply-adds changes the last bit of each entry, and the two kernels are compiled with different pairings (same instruction counts, different operand placement). **The pairing, found by exact emulation.** Storing the camera-space covariance changes the fused kernel's arithmetic, so it cannot be read directly. Instead, 20,000 Gaussians were placed exactly on the optical axis and the camera was rotated about z only (24 random angles, 480,000 Gaussian-by-camera samples; `isolate_projection_stage.py --pairing`). Then everything after `covarW2C` in `persp_proj` is exact multiplications that can be reproduced in software (checked on the identity rotation: 20,000 of 20,000 Gaussians), and every sum in `R * covarW * transpose(R)` has two non-zero terms. A sum `a*b + c*d` can be evaluated as unfused (both products rounded), as `fma(a, b, round(c*d))`, or as `fma(c, d, round(a*b))`. Matching the kernels' 2D covariances bit for bit against all 81 combinations per row of the 2x2 block:
+
+| Kernel | Pattern in all 8 two-term sums (both rows, both products of `(R S) R^T`) | Samples reproduced exactly |
+| --- | --- | --- |
+| unpacked (`ProjectionEWA3DGSFused`) | second product rounded, first product fused into the add | 100.00% |
+| packed (`ProjectionEWA3DGSPacked`) | first product rounded, second product fused into the add | 100.00% |
+
+The best alternative combinations reproduce 85-87% of samples. The instrumented kernels still matched gsplat's own conics on this input (20,000 of 20,000 for both). So the two kernels fuse opposite products of each sum in `covarW2C`, which changes the last bit of each entry; the last-bit difference is then amplified by the conditioning of the 2D covariance in `glm::inverse`. The real sums have three terms. With a general rotation (all nine entries non-zero) the covariance was zeroed outside one index block at a time ({0,1}, {0,2}, {1,2}) so that the third product is exactly zero and the two-term test applies to that pair of positions (24 random rotations per block, 240,000 samples per block; `--three-term`). Every block reproduces both kernels at 100.00% (the best alternative 85-87%), in both rows and in both products of `(R S) R^T`:
+
+| Position pair | unpacked (`ProjectionEWA3DGSFused`) | packed (`ProjectionEWA3DGSPacked`) |
+| --- | --- | --- |
+| (1st, 2nd product) | 2nd rounded, 1st fused | 1st rounded, 2nd fused |
+| (1st, 3rd product) | 1st rounded, 3rd fused | 1st rounded, 3rd fused |
+| (2nd, 3rd product) | 2nd rounded, 3rd fused | 2nd rounded, 3rd fused |
+
+The pair tests fix the order of the products only for the entries that see all three position pairs (`(R S)[r][0]` sees (0,1) and (0,2); `(R S)[r][1]` sees (0,1) and (1,2); `(R S)[r][2]` sees (0,2) and (1,2); `(R S) R^T` sees all three), and they cannot tell whether the third product is fused or added separately, since it is zero there. So the full three-term sums were then searched directly (`--three-term-full`; 24 rotations, 480,000 Gaussian-by-camera samples, all four 2D covariance elements of a sample must match): for each of the five sums per row, one of the six fused chains (the order in which the three products enter a chain of multiply-adds).
+
+| Sum | unpacked (`ProjectionEWA3DGSFused`) | packed (`ProjectionEWA3DGSPacked`) |
+| --- | --- | --- |
+| `(R S)[r][0]`, `(R S)[r][1]` | 2nd product rounded, 1st fused, 3rd fused | 1st rounded, 2nd fused, 3rd fused |
+| `(R S)[r][2]` | 1st rounded, 2nd fused, 3rd fused | 1st rounded, 2nd fused, 3rd fused |
+| `(R S R^T)[r][0]`, `[r][1]` | 2nd rounded, 1st fused, 3rd fused | 1st rounded, 2nd fused, 3rd fused |
+| Samples reproduced exactly | 100.000% | 100.000% |
+
+The best alternative assignments reproduce 87-88%, and a single pattern for every sum reproduces 79.4% (unpacked) and 100% (packed). So the packed kernel evaluates every sum in source order, and the unpacked kernel starts the chain from the second product in all sums except the third column of `R S`, where it uses source order. That is the rounding difference between the two kernels. It changes the last bit of the entries of the camera-space covariance, which the conditioning of the 2D covariance then amplifies in `glm::inverse`.
+
+**Blend/skip decisions are reproduced exactly by the kernel's own arithmetic.** gsplat's rasterizer evaluates `sigma = 0.5f * (conic.x * dx * dx + conic.z * dy * dy) + conic.y * dx * dy` and `alpha = min(0.999f, opac * __expf(-sigma))`. Compiling that expression with the same nvcc and applying it to each path's own float32 conic predicts which path blended the Gaussian in 59 of 59 MR1 scenes, with and without `-use_fast_math`, against 42 for torch float32 and 41 for a float64 evaluation. So in those scenes the decision follows from the two paths' float32 conics through the kernel's arithmetic; torch's recomputation missed 17 because of how torch evaluates that expression, not because of an unknown effect. In the two early-stop scenes the same compiled replay stops the pixel in the scaled render and blends the last Gaussian in the base render, matching the kernel (final T 7.7e-03 and 1.0e-02 against 1.0e-04). The earlier mismatch in the second scene was the torch replay.
+
+### Every finding of the 100,000-scene run, bisected
+
+The samples above are superseded by bisecting all of them (`diagnose_mr4.py` / `diagnose_mr1.py --scenes-from`, split into several jobs; for the 52 MR4 scenes whose difference is visible only in the alpha image, `--by alpha`).
+
+| Group | Cutoff flip (1 Gaussian) | Depth-order flip | Early stop | Smooth conic difference | Other |
+| --- | --- | --- | --- | --- | --- |
+| MR4 `isolated_discontinuity` (4,643) | 4,507 | 60 | 71 | 5 | 0 |
+| MR4 `tie_ambiguous` (134) | 8 | 121 | 4 | 1 | 0 |
+| MR1 `isolated_discontinuity` (532) | 525 | 0 | 7 | 0 | 0 |
+
+- **Cutoff flips** are 97% of the MR4 isolated cases (including the 5 listed under Other below) and 99% of the MR1 ones: one Gaussian with alpha at 1/255, subset difference at most 3.9e-03. This includes 33 MR4 and 5 MR1 cases visible only in the alpha image.
+- **Early-stop flips** (more than one Gaussian needed, final T near 1e-4) are 71 of the MR4 isolated cases (including 18 alpha-only), 4 of the tied ones and 7 of the MR1 ones, so the early stop occurs in all three relations.
+- **Depth-order flips** are 60 of the isolated MR4 cases (one pixel, small effect) and 121 of the 134 tied ones.
+- **Smooth conic difference** (one Gaussian, transmittance changes by 2e-04 to 3e-04, nothing blended or skipped, all `anisotropic`): 5 MR4 isolated and 1 tied.
+- **Other**: 5 MR4 isolated cases need 2 to 13 Gaussians and are not near the early-stop threshold. Their final transmittance changes by 3.9e-03, the cutoff-flip signature. Checked one by one (`diagnose_open_items.py --item 6`, each kept Gaussian's alpha at the pixel center in both renders): in every one exactly one kept Gaussian has alpha at 1/255 (0.0039216) in both renders, and all the others have alpha far from the cutoff and identical in both renders (differences below 1e-6). So all 5 are single cutoff flips; the bisection kept the other Gaussians because they set the transmittance in front of the flipped one, which scales the color difference.
+- **The tie relabel:** 121 of the 134 scenes it labels `tie_ambiguous` (90%) are depth-order flips of near-tied Gaussians, as the label says. The other 13 (8 cutoff flips, 4 early stops, 1 smooth difference) are violations of other mechanisms that the relabel hides.
+
+**The smooth difference is a conditioning effect, tested directly.** For the one Gaussian of the N = 27 scene (kappa = 10,625, axis ratio 103), moving every scale by a single float32 step changes its conic by 10,623 ULP, against 24,610 ULP for the world scaling at k = 0.01: a 1-ULP change in the input becomes about kappa ULP in the output. Together with the exact factor giving no difference, and the kappa table above, this closes the question for the MR4 smooth differences; for MR1 the input difference is the one inside `covarW2C`.
+
+### Limits
+
+- The multiply-add pairing was measured on one build of the extension (the cached gsplat 1.5.3 build, `-O3 -use_fast_math`, one nvcc) and one input configuration (Gaussians on the optical axis at camera depth 4, so that `persp_proj` is exact multiplications). It was run on both H100 variants of the cluster (`h100-96` and `h100-47`) and gave identical results (for example the single-pattern search reproduces 79.355% of the unpacked kernel's samples on both). Other compiler versions were not tested and may select different multiply-add pairings.

@@ -386,8 +386,11 @@ def load(a, scene_idx):
     return mode, scene, cameras
 
 
-def cases_from_csv(path, where):
-    """[(scene_idx, mr4_worst_k)] for rows with column == value, e.g. mr4_verdict=isolated_discontinuity."""
+def cases_from_csv(path, where, rgb_below=None):
+    """[(scene_idx, mr4_worst_k)] for rows with column == value, e.g. mr4_verdict=isolated_discontinuity.
+
+    With rgb_below, only rows whose mr4_rgb_d_max is at most that (differences visible only in the alpha image).
+    """
     import csv
 
     col, val = where.split("=", 1)
@@ -395,7 +398,7 @@ def cases_from_csv(path, where):
         return [
             (int(r["scene_idx"]), float(r["mr4_worst_k"]) if r.get("mr4_worst_k") else None)
             for r in csv.DictReader(f)
-            if r.get(col) == val
+            if r.get(col) == val and (rgb_below is None or (r.get("mr4_rgb_d_max") and float(r["mr4_rgb_d_max"]) <= rgb_below))
         ]
 
 
@@ -410,6 +413,8 @@ def main() -> int:
     )
     p.add_argument("--where", type=str, default="mr4_verdict=isolated_discontinuity", help="column=value filter for --scenes-from")
     p.add_argument("--every", type=int, default=1, help="with --scenes-from, bisect every K-th matching scene")
+    p.add_argument("--offset", type=int, default=0, help="with --every, start at the OFFSET-th matching scene (runs of the same K and offsets 0..K-1 together cover all scenes)")
+    p.add_argument("--rgb-below", type=float, default=None, help="with --scenes-from, only scenes whose mr4_rgb_d_max is at most this")
     p.add_argument("--mode", type=str, default=None, help="scene mode (not used with --large)")
     p.add_argument("--large", action="store_true", help="replay a run_large_scale.py scene")
     p.add_argument("--seed", type=int, default=None, help="default 0, or 1000 with --large")
@@ -433,11 +438,18 @@ def main() -> int:
     if a.scenes_from:
         a.large = True
         results = []
-        for idx, k in cases_from_csv(a.scenes_from, a.where)[:: a.every]:
+        for idx, k in cases_from_csv(a.scenes_from, a.where, a.rgb_below)[a.offset :: a.every]:
             mode, scene, cameras = load(a, idx)
             cam = cameras[0]
             print(f"scene {idx} [{mode}] n={scene.n} res={cam.width}x{cam.height} cameras={len(cameras)}")
-            results.append((idx, bisect(scene, cam, k or a.bisect_k, by=a.by)))
+            # an alpha-only difference may sit at a different factor than the rgb worst case: try both inexact ones
+            ks = [0.01, 100.0] if a.by == "alpha" else [k or a.bisect_k]
+            r = None
+            for kk in ks:
+                r = bisect(scene, cam, kk, by=a.by)
+                if r:
+                    break
+            results.append((idx, r))
         print(f"\nSUMMARY of {len(results)} scenes (where {a.where}):")
         counts = {}
         for idx, r in results:

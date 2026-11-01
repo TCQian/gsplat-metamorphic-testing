@@ -246,6 +246,28 @@ def item5(a, idx):
     bisect(scene, cam, 1.0, by="alpha", render_a=fu, render_b=fp, k_b=1.0)
 
 
+# ---------------------------------------------------------------- item 6
+def item6(a, idx, k):
+    scene, cam = get(a, idx)
+    print(f"scene {idx} n={scene.n} k={k:g}")
+    res = bisect(scene, cam, k)
+    if res is None:
+        return
+    (y, x), keep = res["pixel"], res["keep"]
+    sub = subset(scene, torch.tensor(keep, device=scene.means.device))
+    _, _, m0 = render(sub, cam, 1.0, with_meta=True)
+    _, _, mk = render(sub, cam, k, with_meta=True)
+    print(f"\n  alpha of each kept Gaussian at the pixel center (y={y}, x={x}); 1/255 = {THR:.7f}")
+    near = []
+    for j, g in enumerate(keep):
+        a0 = alpha_f32(meta_at(m0, "means2d", j), meta_at(m0, "conics", j), meta_at(m0, "opacities", j), x + 0.5, y + 0.5).item()
+        a1 = alpha_f32(meta_at(mk, "means2d", j), meta_at(mk, "conics", j), meta_at(mk, "opacities", j), x + 0.5, y + 0.5).item()
+        flag = abs(a0 - THR) < 2e-5 or abs(a1 - THR) < 2e-5
+        near.append(flag)
+        print(f"    Gaussian {g:5d}: base {a0:.7f}  scaled {a1:.7f}{'   <-- at the cutoff' if flag else ''}")
+    print(f"  Gaussians whose alpha is within 2e-5 of 1/255 in either render: {sum(near)} of {len(keep)}")
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--item", default="all", help="1-5 or all")
@@ -255,7 +277,7 @@ def main() -> int:
     p.add_argument("--seed", type=int, default=None)
     a = p.parse_args()
     a.large, a.mode = True, None
-    items = [1, 2, 3, 4, 5] if a.item == "all" else [int(a.item)]
+    items = [1, 2, 3, 4, 5, 6] if a.item == "all" else [int(a.item)]
 
     def run(n, fn, *args):
         print(f"\n######## item {n}")
@@ -277,6 +299,9 @@ def main() -> int:
         elif n == 4:
             for i in a.scene_idx or [53078, 85315]:
                 run(4, item4, i, a.k or 100.0)
+        elif n == 6:
+            for i, kk in [(32480, 100.0), (44866, 100.0), (70893, 0.01), (46820, 100.0), (56288, 100.0)] if not a.scene_idx else [(i, a.k or 100.0) for i in a.scene_idx]:
+                run(6, item6, i, kk)
         elif n == 5:
             if a.scene_idx:
                 idxs = a.scene_idx
