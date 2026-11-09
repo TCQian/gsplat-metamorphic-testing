@@ -24,7 +24,7 @@ python gsplat_mt/run_preliminary.py --n-scenes 20 --out results/refined_results.
 Useful flags (`--help` for the full list):
 
 - `--n-scenes`: scenes per mode
-- `--modes`: subset of `default opacity_extreme scale_tiny scale_huge anisotropic wide_spread far_clipped single dense_cover`. The default is the first eight; `dense_cover` is opt-in so existing seeds reproduce. It raises N to at least 300 and sets the radius, Gaussian size and opacities from the camera distance, field of view and aspect ratio so Gaussians fill the frame about 4 layers deep (a standalone estimate gives 85-98% pixel coverage up to a 60 degree field of view, and 50-62% at 90 degrees)
+- `--modes`: subset of `default opacity_extreme scale_tiny scale_huge anisotropic wide_spread far_clipped single dense_cover`. The default is the first eight; `dense_cover` is opt-in so existing seeds reproduce. It raises N to at least 300 and sets the radius, Gaussian size and opacities from the camera distance, field of view and aspect ratio so Gaussians fill the frame about 4 layers deep (measured median pixel coverage is 44%, against 11% for the other modes; a standalone estimate had predicted 85-98%)
 - `--world-scales`: MR4 scale factors k (default `0.01 0.0078125 0.25 4 100 128`; powers of two are also checked for exact equality)
 - `--n-gaussians-min/max`, `--width/--height`, `--n-cameras`
 - `--mr1-backgrounds`: also run MR1 with a background color set, to probe gsplat issue [#764](https://github.com/nerfstudio-project/gsplat/issues/764)
