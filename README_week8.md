@@ -6,8 +6,9 @@ World-scale and permutation relations, checks for renders that prove nothing, an
 
 ### MR4: uniform world-scale invariance (`gsplat_mt/mr4_world_scale.py`)
 
-`run_mr4(scene, camera, k, mode)` renders the scene, then renders it again with means, scales, camera translation and near/far planes multiplied by `k` (intrinsics, rotations, colors, opacities unchanged).
+`run_mr4(scene, camera, k, mode)` renders the scene, then renders it again with means, scales, camera translation and near/far planes multiplied by `k`, the world-scale factor (intrinsics, rotations, colors, opacities unchanged). Scaling the whole world and the camera together by the same `k` leaves the image unchanged, so the two renders should match; `k` > 1 enlarges the world and `k` < 1 shrinks it.
 
+Following modes:
 - `correct`: full joint transform.
 - `no_translation`: fault injection; camera translation left unscaled.
 
@@ -17,6 +18,7 @@ The runner sweeps `--world-scales` (default `0.01 0.25 4 100`) and records the w
 
 `run_mr5(scene, camera, seed, mode)` applies one seeded random permutation to every per-Gaussian attribute and compares renders.
 
+Following modes:
 - `correct`: all attributes permuted together.
 - `misaligned`: fault injection; colors left unpermuted.
 - `mr5_depth_tie`: set when Gaussians in front of the camera have depths closer than 1e-6. A difference in a tied scene is reported as `tie_ambiguous`, not `violation`.
@@ -44,7 +46,7 @@ A `pass` on a render that draws nothing becomes `vacuous_pass`: camera 0 empty f
 
 ### Diagnosis tool (`gsplat_mt/diagnose_mr4.py`)
 
-Replays one scene and compares original vs k-scaled renders pixel by pixel, over power-of-two k (exact in binary) and inexact k. For pixels over tolerance it reports where they are and the alpha of the single Gaussian that would explain the difference (`alpha = 1 - T_small / T_large`, from the final transmittance at that pixel). Run as `python gsplat_mt/diagnose_mr4.py --scene-idx N --mode MODE`.
+Replays one scene and compares the original render with the render scaled by the world-scale factor `k` (the MR4 multiplier above) pixel by pixel, over power-of-two `k` (such as 1/128, 4, 128; multiplying by these is exact in binary floating point) and inexact `k` (such as 0.01 and 100, which add rounding). For pixels over tolerance it reports where they are and the alpha of the single Gaussian that would explain the difference (`alpha = 1 - T_small / T_large`, from the final transmittance at that pixel). Run as `python gsplat_mt/diagnose_mr4.py --scene-idx N --mode MODE`.
 
 ## What was tested
 
@@ -61,7 +63,7 @@ Replays one scene and compares original vs k-scaled renders pixel by pixel, over
 | MR5 permutation           | 0         | pass                                              |
 
 - No scene crashed. Fault injections were detected in every scene with a non-empty render (D_max up to 0.59 for MR3, 0.96 for MR4, 0.92 for MR5). MR5's injection cannot fire for `single` (N = 1), where the permutation is the identity.
-- MR4's worst case was always k = 100 or k = 0.01. MR4 noise is about 1e-6 for typical scenes.
+- MR4's worst case (the `k` giving the largest D_max) was always k = 100 or k = 0.01, the two factors that are not powers of two. MR4 noise is about 1e-6 for typical scenes.
 - MR5: 3 scenes had near-equal depths; none produced a difference.
 - One `far_clipped` scene rendered nothing; its results are `vacuous_pass`. Its `n_visible_cam0` was 1, so the culling-based count does not guarantee drawn pixels; coverage is what verdicts use.
 
@@ -72,9 +74,9 @@ One dense `scale_huge` scene (188 Gaussians) exceeded the MR4 tolerance at k = 0
 - Power-of-two k (1/128, 1/4, 4, 128) gave D_max exactly 0 over all pixels, and repeated renders are identical. gsplat's scale handling is exact.
 - At k = 0.01 about 3800 of 4096 pixels differed by ~1e-7 (rounding from the inexact factor), and exactly one pixel differed by 5.96e-04.
 - At that pixel, final transmittance differed by 0.4%, equal to `(1 - 1/255)^-1`: one Gaussian with alpha near 1/255 was skipped in one render and blended in the other. gsplat skips Gaussians with alpha < 1/255 (`ALPHA_THRESHOLD` in `cuda/include/Common.h`). Per-Gaussian alpha at that pixel was not logged, so this is strongly supported but not directly observed.
-- Under the isolated-pixel rule this scene is reported as `isolated_discontinuity` (1 of 4096 pixels over tolerance), with D_max still recorded. It is the only scene in the run with a nonzero MR4 pixel count; MR1 pixel counts are 0 everywhere.
+- Under the isolated-pixel rule this scene is reported as `isolated_discontinuity` (1 of 4096 pixels over tolerance), with D_max still recorded. It is the only scene in the run with any pixel over tolerance for MR4 (`n_px_over > 0`); for MR1, `n_px_over` is 0 in every scene.
 
 ### Image content: saturation and sparsity
 
-- With the old `scale_huge` range [0.5, 2.0], every pixel had alpha > 0 and the median opaque fraction was 1.0 (18 of 20 scenes over 95% opaque), so Gaussians behind the front layer could not affect pixels. With [0.15, 0.5] the median opaque fraction is 0.16 (range 0.08-0.44) and median coverage 0.79.
+- With the old `scale_huge` range [0.5, 2.0], every pixel had alpha > 0 and the median opaque fraction was 1.0 (18 of 20 scenes over 95% opaque), so Gaussians behind the front layer could barely affect pixels. A pixel with alpha > 0.99 has transmittance T < 0.01, and a Gaussian behind adds `color x alpha x T`, so at most 0.01 (1 intensity level of 100); once T falls to 1e-4 or below, gsplat's early stop skips the remaining Gaussians entirely. With [0.15, 0.5] the median opaque fraction is 0.16 (range 0.08-0.44) and median coverage 0.79.
 - In the other modes the opaque fraction is at most 0.05 and median coverage is 0.01-0.16, so most pixels are background. Passes there rest on sparse images; the injected bugs are still detected because they move enough pixels.

@@ -72,14 +72,21 @@ For each scene's worst pixel (at k = 0.01), delta debugging removed Gaussians wh
 - **Depth-order flip (the three violators and the 5.5e-02 outlier).** Two Gaussians out of 1410-4928 are enough in all four scenes. In each, the two have relative depth gaps of 6.0e-08, 0, 9.9e-08 and 0, which is at most about one float32 step (1.2e-07). In the original render the order is fixed one way; in the k-scaled render (depths divided by k) they come out tied or swapped, because the depths pass through a multiplication by 0.01 and a division. Their combined (1 - alpha) is the same in both renders to about 1e-6 relative, so the cutoff is not involved: the same two Gaussians are blended, only in a different order, which changes the color. Alphas at the pixel are 0.05-0.41, far above 1/255.
   - The pair alone changes the worst pixel by 3.1e-03 to 5.8e-02. In the full scene the pixel difference is 1.8e-03 to 5.5e-02, smaller where other Gaussians also contribute at that pixel.
   - This replaces the earlier "mixed evidence": the 9.9e-08 gap in the scene with about 1000 candidates is not a chance coincidence, since removing everything else but the pair still reproduces the difference.
-- Not measured here: how the tied order is resolved inside gsplat's sort (tied depths gave one order in one render and the other order, or a tie, in the other). Also, only the worst pixel was bisected, so the remaining 27-184 pixels per violator are presumably, but not shown to be, caused by the same pair. The early-stop pattern seen in one scene (some pixels with large transmittance change) was not examined.
+
+### Not established by the bisection
+
+These are open questions or guesses, not measurements.
+
+- How the tied order is resolved inside gsplat's sort: the tied depths gave one order in one render and the other order, or a tie, in the other, but why was not examined (Week 11's `probe_ties.py` tests it).
+- Only the worst pixel was bisected, so the remaining 27-184 pixels per violator are presumably, but not shown to be, caused by the same pair.
+- The early-stop pattern seen in one scene (some pixels with large transmittance change) was not examined.
 - MR5 reports exactly 0 on these scenes although each has a tied pair. One random permutation reorders a given tied pair only about half the time, so a 0 is not surprising, but it was not checked per pair.
 
 ### Scene characteristics associated with larger differences
 
 - **Number of Gaussians**: the share of scenes with MR4 D_max above 1e-4 is 0.6% for N < 100, 2.6% for N 100-999 and 15.6% for N >= 1000. The three violators have 1410 to 4402 Gaussians; the isolated cases include small scenes too (an N = 1 and an N = 13 scene are among the eight largest D_max values).
 - **Stress mode** (share of that mode's scenes with MR4 D_max above 1e-4; each mode has about 230-270 scenes): `scale_huge` 11.6%, `default` 5.5%, `wide_spread` 5.8%, `anisotropic` 5.6%, `opacity_extreme` 3.5%, `scale_tiny` 2.0%, `far_clipped` 1.5%, `single` 0.4%.
-- **Depth ties**: 371 of 2000 scenes have near-equal depths (303 with N >= 1000). 18.6% of all scenes are tied, but 65% of the MR4 isolated cases (55 of 85) and all 3 violators are. N is a confound, since both ties and tolerance failures become likelier with more Gaussians.
+- **Depth ties**: 371 of 2000 scenes have near-equal depths (303 with N >= 1000). Tied scenes are over-represented among MR4 failures: 18.6% of all scenes are tied, but 55 of the 85 MR4 `isolated_discontinuity` scenes (65%) and all 3 `violation` scenes are tied. A tied scene is not necessarily failing because of the tie, since the flag is per scene (Week 11 further finds most tied cutoff-flip scenes unrelated to it). N is a confound, since both ties and tolerance failures become likelier with more Gaussians.
 - **MR5**: among tied scenes, 12 of 303 (N >= 1000) and 4 of 68 (N < 1000) show a difference, so the share is not higher at large N.
 - **Rank correlations with D_max (Spearman)**, over all 2000 scenes:
 
@@ -95,13 +102,17 @@ For each scene's worst pixel (at k = 0.01), delta debugging removed Gaussians wh
 | mean opacity | 0.06 | 0.15 |
 | cameras | -0.01 | 0.01 |
 
-  These are weak evidence. Overlap, coverage and N are strongly related to each other; most D_max values are 0 or float noise; and I have not explained the negative MR4 signs for overlap and scale.
+  These are weak evidence. Overlap, coverage and N are strongly related to each other; most D_max values are 0 or float noise; and the negative MR4 signs for overlap and scale are unexplained.
 - **Image content**: most renders are mostly background (opaque fraction at most 0.05 outside `scale_huge`), and with the original `scale_huge` range images were fully opaque (see Week 8). A pass on a sparse image rests on few pixels.
 
 ### The pixel-fraction rule is not enough
 
 The `isolated_discontinuity` label, based only on pixel count, accepted a scene with D_max 5.5e-02, far above what one alpha-cutoff flip can produce. That scene is a depth-order flip of two nearly-tied Gaussians, as are the three violators. A label that also bounds the size of the difference (about 1/255) would not have accepted it. The violator/isolated split by pixel count therefore separates two different things only loosely: the violators are a depth swap of two large Gaussians that overlap many pixels, and a swap of two small ones can touch a single pixel and be labeled isolated.
 
-## Follow-up
+## Open
 
-The two proposed oracle changes (exact-zero check on power-of-two factors, size bound on `isolated_discontinuity`) and the open diagnosis items (MR1 single-pixel cases, the MR4 isolated cases, equal-depth ordering, the early-stop pattern) are in `README_week11.md`. The depth-tie relabel above was narrowed there to `violation` only.
+- **Oracle:** whether power-of-two factors should be checked for exact equality (tolerance 0), and whether `isolated_discontinuity` should also bound D_max (about 1/255, the most one cutoff flip can change a pixel).
+- **MR1 single-pixel cases:** the 7 differing pixels are presumed to be the same alpha-cutoff flip, but were not diagnosed.
+- **MR4 isolated cases:** the 30 untied cases are presumed cutoff flips, but the Gaussians behind their differing pixels were not identified.
+- **Equal-depth ordering:** how gsplat orders Gaussians with exactly equal depth, and whether a permutation (MR5) can change the image for a tied pair.
+- **Early-stop pattern:** one violator has pixels with large transmittance changes that were not examined.

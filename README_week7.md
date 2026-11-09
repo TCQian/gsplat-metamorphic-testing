@@ -19,7 +19,7 @@ Stress modes for the scene generator, a tolerance-based pass/violation oracle, a
 | `far_clipped`     | radius-150 ball, scales in [1, 3] (most beyond `far_plane`)                        |
 | `single`          | N = 1                                                                              |
 
-Mode overrides take precedence over the caller's sampling arguments. There is no N = 0 mode: a CUDA illegal-memory-access error is sticky and would corrupt every later scene in the process.
+Mode overrides take precedence over the caller's sampling arguments. There is no N = 0 mode: an empty input could trigger a CUDA illegal-memory-access error, which is sticky (it permanently breaks the process's CUDA context, so every later scene would fail or be invalid).
 
 ### Oracle (`gsplat_mt/metrics.py`)
 

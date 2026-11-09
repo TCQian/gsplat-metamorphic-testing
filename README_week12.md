@@ -1,6 +1,6 @@
 # Week 12: perceptual-diagnostic response to reviewer feedback
 
-Feedback on §3.3 (Metamorphic Oracle) proposed a human-vision model to address floating-point noise, citing the reviewer's own ISSTA'24 paper ("Inconsistencies in TeX-Produced Documents", Tan & Rigger, doi:10.1145/3650212.3680370).
+Feedback from prof proposed a human-vision model to address floating-point noise, citing the ISSTA'24 paper ("Inconsistencies in TeX-Produced Documents", Tan & Rigger, doi:10.1145/3650212.3680370).
 
 ## "Human vision model"
 
@@ -68,4 +68,9 @@ So the condition set above ("clean separation") is not met: `verdict()` stays un
 
 ## Next
 
-- Nothing further planned for SSIM. LPIPS and FLIP were not tried.
+- Nothing further planned for SSIM.
+- LPIPS and FLIP were not tried, and are not expected to help (this is a prediction, not a measurement):
+  - Like SSIM they score the image as a whole or by local patches, so the cases SSIM could not separate (one-pixel cutoff flips, the weakest injected bugs, the five untied violators) should stay hard to separate. A 3.9e-03 change on one pixel is invisible to a person, and so presumably to a perceptual model.
+  - D_max already flags every injected bug in a non-empty scene, and every finding has already been traced to a mechanism by bisection, so a perceptual score would have no unexplained cases to classify.
+  - LPIPS needs a pretrained network (a new dependency) and is not designed for differences near 1e-7; FLIP needs an extra package and would mostly report "not visible" for the benign cases, which the 1e-4 tolerance and the 4e-3 size bound already say.
+  - They would only be worth running to answer whether a person could ever see these differences, for example FLIP on the `tie_ambiguous` scenes, where depth swaps reach 0.2 at a pixel. That is a different question from the oracle's.

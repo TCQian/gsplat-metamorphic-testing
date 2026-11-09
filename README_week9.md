@@ -20,9 +20,21 @@ Each scene samples a configuration, then runs the same per-scene pipeline as `ru
 | Resolution | one of 64x64, 120x90, 128x128, 256x192, 256x256 |
 | Mode | uniform over `--modes` (default all 8 scene modes) |
 
-A mode's own overrides win over the sampled values they touch (for example `wide_spread` fixes the scene radius), so `cfg_*` columns do not apply to those fields in that mode.
+Each stress mode (`scene.py:sample_scene`) can overwrite some of the sampled values. The `cfg_*` columns always record the *sampled* value, not the one actually used, so in these cases they do not describe the scene:
 
-Flags: `--n-scenes` (default 2000), `--seed` (default 1000), `--modes`, `--n-min/--n-max`, `--max-cameras`, `--world-scales`, `--out`, and `--only-scene i` to replay one scene index with its sampled configuration.
+| Mode | Overridden | Used instead | `cfg_*` that no longer applies |
+| --- | --- | --- | --- |
+| `scale_tiny` | scale range | [1e-4, 1e-3] | scale range |
+| `scale_huge` | scale range | [0.15, 0.5] | scale range |
+| `wide_spread` | scene radius | 8.0 | scene radius |
+| `far_clipped` | scene radius, scale range | 150.0, [1.0, 3.0] | scene radius, scale range |
+| `single` | Gaussian count N | 1 | N |
+| `opacity_extreme` | opacities, replaced after sampling | drawn from {0, 1e-4, 0.999, 1} | opacity range |
+| `anisotropic` | none (one axis of each scale is shrunk 1000x afterwards) | sampled scale range, then shrunk | none, but actual scales are smaller than the range |
+
+The camera distance is always computed from the *sampled* radius and is never overridden. So in `wide_spread` and `far_clipped` the cameras are placed as if the scene had the sampled radius (0.3-2.0) while the Gaussians actually fill a radius of 8 or 150, which is why many of them end up behind the camera or beyond the far plane.
+
+Flags: `--n-scenes` (default 2000), `--seed` (default 1000), `--modes`, `--n-min/--n-max`, `--max-cameras`, `--world-scales` (the MR4 factors k: each renders the scene a second time with means, scales, camera translation and near/far planes multiplied by k, and the two renders should match), `--out`, and `--only-scene i` to replay one scene index with its sampled configuration.
 
 ### Outputs (next to `--out`)
 
@@ -35,11 +47,11 @@ Flags: `--n-scenes` (default 2000), `--seed` (default 1000), `--modes`, `--n-min
 
 - A scene that raises is recorded with `fatal_error` and the run continues.
 - Out-of-memory errors empty the CUDA cache and continue.
-- Any other CUDA error stops the run (exit code 1, `aborted` set in the summary), since a sticky CUDA error would invalidate every later scene.
+- Any other CUDA error stops the run (exit code 1, `aborted` set in the summary), since a sticky CUDA error (one that permanently breaks the process's CUDA context, so every later call fails) would invalidate every later scene.
 
 ### Diagnosis tool
 
-`gsplat_mt/diagnose_mr4.py --scene-idx N --large` replays a large-scale scene with its sampled configuration. Besides per-pixel differences over exact (power-of-two) and inexact k, it reports how many 16x16 tiles the over-tolerance pixels fall in and the implied alpha of the Gaussian that would explain each difference (values near 1/255 point to gsplat's alpha cutoff).
+`gsplat_mt/diagnose_mr4.py --scene-idx N --large` replays a large-scale scene with its sampled configuration. Besides per-pixel differences over exact (power-of-two) and inexact world-scale factors k (the MR4 multiplier on means, scales, camera translation and near/far), it reports how many 16x16 tiles the over-tolerance pixels fall in and the implied alpha of the Gaussian that would explain each difference (values near 1/255 point to gsplat's alpha cutoff).
 
 ### SLURM
 
