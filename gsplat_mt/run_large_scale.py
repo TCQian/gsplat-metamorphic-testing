@@ -39,7 +39,7 @@ from run_preliminary import (
     summarize,
     sync,
 )
-from scene import SCENE_MODES
+from scene import DEFAULT_MODES, SCENE_MODES
 
 RESOLUTIONS = [(64, 64), (120, 90), (128, 128), (256, 192), (256, 256)]
 MR_KEYS = ["mr1_verdict", "mr2_verdict", "mr3_correct_verdict", "mr4_verdict", "mr4_exact_verdict", "mr5_verdict"]
@@ -192,7 +192,7 @@ def is_finding(row: Dict[str, object]) -> bool:
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--n-scenes", type=int, default=2000)
-    p.add_argument("--modes", nargs="+", default=list(SCENE_MODES), choices=SCENE_MODES)
+    p.add_argument("--modes", nargs="+", default=list(DEFAULT_MODES), choices=SCENE_MODES, help="dense_cover is opt-in so the default sampling matches earlier runs")
     p.add_argument("--n-min", type=int, default=10)
     p.add_argument("--n-max", type=int, default=5000)
     p.add_argument("--max-cameras", type=int, default=8)

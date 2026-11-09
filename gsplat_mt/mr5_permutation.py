@@ -14,12 +14,12 @@ Modes:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal, Optional
+from typing import Literal, Optional, Sequence, Union
 
 import gsplat
 import torch
 from metrics import ImageDiff, compare_images
-from scene import Camera, GaussianScene
+from scene import Camera, GaussianScene, as_camera_list, stack_cameras
 
 
 @dataclass
@@ -32,19 +32,23 @@ class MR5Result:
 
 def has_depth_tie(
     scene: GaussianScene,
-    camera: Camera,
+    cameras: Union[Camera, Sequence[Camera]],
     near_plane: float,
     far_plane: float,
     eps: float,
 ) -> bool:
-    z = scene.means @ camera.viewmat[:3, :3].T[:, 2] + camera.viewmat[2, 3]
-    z = z[(z > near_plane) & (z < far_plane)].sort().values
-    return z.numel() >= 2 and bool((z[1:] - z[:-1]).min() < eps)
+    """True if, in any camera, two Gaussians in front of it have depths closer than eps."""
+    for camera in as_camera_list(cameras):
+        z = scene.means @ camera.viewmat[:3, :3].T[:, 2] + camera.viewmat[2, 3]
+        z = z[(z > near_plane) & (z < far_plane)].sort().values
+        if z.numel() >= 2 and bool((z[1:] - z[:-1]).min() < eps):
+            return True
+    return False
 
 
 def run_mr5(
     scene: GaussianScene,
-    camera: Camera,
+    cameras: Union[Camera, Sequence[Camera]],
     seed: int,
     mode: Literal["correct", "misaligned"] = "correct",
     near_plane: float = 0.01,
@@ -59,13 +63,14 @@ def run_mr5(
     ).to(scene.means.device)
     colors_p = scene.colors if mode == "misaligned" else scene.colors[perm]
 
-    tie = has_depth_tie(scene, camera, near_plane, far_plane, tie_eps)
+    tie = has_depth_tie(scene, cameras, near_plane, far_plane, tie_eps)
+    viewmats, Ks, width, height = stack_cameras(cameras)
 
     common = dict(
-        viewmats=camera.viewmat[None],
-        Ks=camera.K[None],
-        width=camera.width,
-        height=camera.height,
+        viewmats=viewmats,
+        Ks=Ks,
+        width=width,
+        height=height,
         near_plane=near_plane,
         far_plane=far_plane,
         sh_degree=None,

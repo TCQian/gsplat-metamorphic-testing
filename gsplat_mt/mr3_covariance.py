@@ -24,12 +24,12 @@ Two covariance construction modes are provided:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal, Optional
+from typing import Literal, Optional, Sequence, Union
 
 import gsplat
 import torch
 from metrics import ImageDiff, compare_images
-from scene import Camera, GaussianScene
+from scene import Camera, GaussianScene, stack_cameras
 from torch import Tensor
 
 
@@ -73,11 +73,13 @@ def _covars_xyzw_bug(quats: Tensor, scales: Tensor) -> Tensor:
 
 def run_mr3(
     scene: GaussianScene,
-    camera: Camera,
+    cameras: Union[Camera, Sequence[Camera]],
     mode: Literal["correct", "xyzw_bug"] = "correct",
     near_plane: float = 0.01,
     far_plane: float = 100.0,
 ) -> MR3Result:
+    """Scale+quat vs covariance render of every camera in one batched call."""
+    viewmats, Ks, width, height = stack_cameras(cameras)
 
     if mode == "correct":
         covars, _ = gsplat.quat_scale_to_covar_preci(
@@ -96,10 +98,10 @@ def run_mr3(
         means=scene.means,
         opacities=scene.opacities,
         colors=scene.colors,
-        viewmats=camera.viewmat[None],
-        Ks=camera.K[None],
-        width=camera.width,
-        height=camera.height,
+        viewmats=viewmats,
+        Ks=Ks,
+        width=width,
+        height=height,
         near_plane=near_plane,
         far_plane=far_plane,
         sh_degree=None,

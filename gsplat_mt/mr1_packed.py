@@ -10,12 +10,12 @@ violation (the two "equivalent" configurations do not both produce a result).
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Sequence, Union
 
 import gsplat
 import torch
 from metrics import TOLERANCES, ImageDiff, compare_images
-from scene import Camera, GaussianScene
+from scene import Camera, GaussianScene, stack_cameras
 
 
 @dataclass
@@ -27,11 +27,13 @@ class MR1Result:
 
 def run_mr1(
     scene: GaussianScene,
-    camera: Camera,
+    cameras: Union[Camera, Sequence[Camera]],
     near_plane: float = 0.01,
     far_plane: float = 100.0,
     use_backgrounds: bool = False,
 ) -> MR1Result:
+    """Packed vs unpacked render of every camera in one batched call."""
+    viewmats, Ks, width, height = stack_cameras(cameras)
 
     backgrounds = None
     if use_backgrounds:
@@ -45,10 +47,10 @@ def run_mr1(
         scales=scene.scales,
         opacities=scene.opacities,
         colors=scene.colors,
-        viewmats=camera.viewmat[None],
-        Ks=camera.K[None],
-        width=camera.width,
-        height=camera.height,
+        viewmats=viewmats,
+        Ks=Ks,
+        width=width,
+        height=height,
         near_plane=near_plane,
         far_plane=far_plane,
         sh_degree=None,

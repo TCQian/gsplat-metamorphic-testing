@@ -54,8 +54,8 @@ class ImageDiff:
     has_nan: bool
     has_inf: bool
     shape: Tuple[int, ...]
-    n_px_over: int  # pixels whose max channel difference exceeds the tol given to compare_images
-    n_pixels: int
+    n_px_over: int  # per image, the most pixels whose max channel difference exceeds the tol given to compare_images
+    n_pixels: int  # pixels in one image (H x W), so the isolated-pixel rule is per camera
 
     def as_row(self, prefix: str) -> dict:
         return {
@@ -138,6 +138,9 @@ def compare_images(a: Tensor, b: Tensor, tol: float = 0.0) -> ImageDiff:
     same = (a32 == b32) | (torch.isnan(a32) & torch.isnan(b32))
     diff = torch.where(same, torch.zeros_like(a32), (a32 - b32).abs())
     diff = torch.where(torch.isnan(diff), torch.full_like(diff, float("inf")), diff)
+    # [..., H, W, C] -> one image per leading index (one per camera when batched).
+    per_px = diff.amax(dim=-1)
+    over = (per_px > tol).reshape(-1, *per_px.shape[-2:]).flatten(1).sum(dim=1)
     return ImageDiff(
         d_max=diff.max().item(),
         d_mae=diff.mean().item(),
@@ -145,8 +148,8 @@ def compare_images(a: Tensor, b: Tensor, tol: float = 0.0) -> ImageDiff:
         has_nan=bool(torch.isnan(a32).any() or torch.isnan(b32).any()),
         has_inf=bool(torch.isinf(a32).any() or torch.isinf(b32).any()),
         shape=tuple(a.shape),
-        n_px_over=int((diff.amax(dim=-1) > tol).sum().item()),
-        n_pixels=diff[..., 0].numel(),
+        n_px_over=int(over.max().item()),
+        n_pixels=per_px.shape[-2] * per_px.shape[-1],
     )
 
 

@@ -49,8 +49,8 @@ import argparse
 
 import gsplat
 import torch
-from run_preliminary import build_argparser
-from scene import GaussianScene, sample_cameras, sample_scene
+from run_preliminary import build_argparser, build_scene_and_cameras
+from scene import GaussianScene
 
 NEAR, FAR = 0.01, 100.0
 TOL = 1e-4
@@ -58,31 +58,8 @@ TILE = 16
 
 
 def build_scene(scene_idx, mode, args, device):
-    """Mirrors the scene/camera construction in run_preliminary.run_one_scene."""
-    generator = torch.Generator(device="cpu").manual_seed(args.seed + scene_idx)
-    n = torch.randint(
-        args.n_gaussians_min, args.n_gaussians_max + 1, (1,), generator=generator
-    ).item()
-    scene = sample_scene(
-        mode,
-        n,
-        mean_radius=args.mean_radius,
-        scale_range=(args.scale_min, args.scale_max),
-        opacity_range=(args.opacity_min, args.opacity_max),
-        generator=generator,
-    ).to(device)
-    cameras = [
-        c.to(device)
-        for c in sample_cameras(
-            args.n_cameras,
-            args.width,
-            args.height,
-            dist_range=(args.dist_min, args.dist_max),
-            fov_deg=args.fov_deg,
-            generator=generator,
-        )
-    ]
-    return scene, cameras
+    """Same scene and cameras as run_preliminary.run_one_scene (shared builder)."""
+    return build_scene_and_cameras(scene_idx, mode, args, device)
 
 
 def near_ties(scene, cam, y, x):

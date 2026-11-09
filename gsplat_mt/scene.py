@@ -11,14 +11,15 @@ Conventions (must match gsplat v1.5.3, see gsplat/rendering.py::rasterization):
   - Ks are standard 3x3 pinhole intrinsics.
 
 `sample_scene` adds edge-case modes (extreme opacity/scale, anisotropy, wide
-spread, far-clipped, N=1) on top of the default `sample_gaussians` generator.
+spread, far-clipped, N=1, dense frame coverage) on top of the default
+`sample_gaussians` generator.
 """
 
 from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
+from typing import List, Optional, Sequence, Tuple, Union
 
 import torch
 from torch import Tensor
@@ -60,6 +61,26 @@ class Camera:
             width=self.width,
             height=self.height,
         )
+
+
+def as_camera_list(cameras: Union["Camera", Sequence["Camera"]]) -> List["Camera"]:
+    """Accept one Camera or a sequence of them."""
+    return [cameras] if isinstance(cameras, Camera) else list(cameras)
+
+
+def stack_cameras(
+    cameras: Union["Camera", Sequence["Camera"]],
+) -> Tuple[Tensor, Tensor, int, int]:
+    """(viewmats [C,4,4], Ks [C,3,3], width, height) for a batched render of all cameras."""
+    cams = as_camera_list(cameras)
+    if len({(c.width, c.height) for c in cams}) != 1:
+        raise ValueError("all cameras must share the same resolution")
+    return (
+        torch.stack([c.viewmat for c in cams], dim=0),
+        torch.stack([c.K for c in cams], dim=0),
+        cams[0].width,
+        cams[0].height,
+    )
 
 
 def random_unit_quaternions(
@@ -129,7 +150,9 @@ def sample_gaussians(
     )
 
 
-SCENE_MODES = (
+# The original eight modes. Runners default to these so existing seeds reproduce:
+# adding a mode to the default list would change every scene's sampled mode.
+DEFAULT_MODES = (
     "default",
     "opacity_extreme",
     "scale_tiny",
@@ -139,6 +162,37 @@ SCENE_MODES = (
     "far_clipped",
     "single",
 )
+SCENE_MODES = DEFAULT_MODES + ("dense_cover",)
+
+# dense_cover: fill the frame with several semi-transparent layers of Gaussians, so few
+# pixels are plain background and many Gaussians contribute to each pixel.
+DENSE_MIN_GAUSSIANS = 300
+DENSE_LAYERS = 4.0  # expected number of Gaussian footprints overlapping a covered pixel
+DENSE_OPACITY_RANGE = (0.05, 0.4)  # low enough that several layers show through
+DENSE_FOOTPRINT_SIGMAS = 2.5  # footprint radius in scales where alpha stays above 1/255
+
+
+def dense_cover_params(
+    n: int,
+    dist_min: float,
+    fov_deg: float,
+    dist_max: Optional[float] = None,
+    aspect: float = 1.0,
+) -> Tuple[float, Tuple[float, float]]:
+    """(mean_radius, scale_range) so n Gaussians cover the frame about DENSE_LAYERS deep.
+
+    Cameras look at the origin from between `dist_min` and `dist_max`; `fov_deg` is the
+    vertical field of view and `aspect` is width / height. A ball of radius r projects to
+    a disc of about the same radius, so r is set to just exceed the frame's larger
+    half-extent at the mid distance, capped at 0.8 x dist_min so no camera is inside the
+    ball. n footprints of radius 2.5 s must total DENSE_LAYERS x the disc area, which
+    fixes s. The frame cannot always be filled (the cap binds for wide fields of view).
+    """
+    dist_max = dist_min if dist_max is None else dist_max
+    tan_half = math.tan(math.radians(fov_deg) / 2.0) * max(1.0, aspect)
+    radius = min(0.8 * dist_min, 1.15 * tan_half * 0.5 * (dist_min + dist_max))
+    s = radius * math.sqrt(DENSE_LAYERS / n) / DENSE_FOOTPRINT_SIGMAS
+    return radius, (0.5 * s, 1.5 * s)
 
 
 def sample_scene(
@@ -147,6 +201,7 @@ def sample_scene(
     generator: Optional[torch.Generator] = None,
     device=None,
     dtype=torch.float32,
+    camera_hint: Optional[Tuple[float, float, float, float]] = None,
     **kwargs,
 ) -> GaussianScene:
     """`sample_gaussians` with a stress mode applied.
@@ -159,6 +214,10 @@ def sample_scene(
       camera, outside the frustum, or inside the near plane.
     - far_clipped: radius-150 ball with large scales; most lie beyond far_plane.
     - single: N = 1.
+    - dense_cover: N raised to at least 300; radius, scales and opacities set from
+      `camera_hint` = (dist_min, dist_max, fov_deg, aspect) so the Gaussians fill the
+      frame (see `dense_cover_params`). Without a hint, distance 2.5-4, fov 60 and a
+      square image are assumed.
 
     `kwargs` are the default-mode sampling arguments; a mode's own overrides win.
     """
@@ -173,6 +232,15 @@ def sample_scene(
     }.get(mode, {})
     if mode == "single":
         n = 1
+    elif mode == "dense_cover":
+        n = max(n, DENSE_MIN_GAUSSIANS)
+        hint = camera_hint if camera_hint is not None else (2.5, 4.0, 60.0, 1.0)
+        radius, scale_range = dense_cover_params(n, *hint)
+        overrides = {
+            "mean_radius": radius,
+            "scale_range": scale_range,
+            "opacity_range": DENSE_OPACITY_RANGE,
+        }
 
     scene = sample_gaussians(
         n, generator=generator, device=device, dtype=dtype, **{**kwargs, **overrides}

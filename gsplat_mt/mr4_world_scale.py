@@ -13,11 +13,11 @@ Modes:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal, Optional
+from typing import Literal, Optional, Sequence, Union
 
 import gsplat
 from metrics import TOLERANCES, ImageDiff, compare_images
-from scene import Camera, GaussianScene
+from scene import Camera, GaussianScene, stack_cameras
 
 
 @dataclass
@@ -29,7 +29,7 @@ class MR4Result:
 
 def run_mr4(
     scene: GaussianScene,
-    camera: Camera,
+    cameras: Union[Camera, Sequence[Camera]],
     k: float,
     mode: Literal["correct", "no_translation"] = "correct",
     near_plane: float = 0.01,
@@ -38,17 +38,18 @@ def run_mr4(
     if mode not in ("correct", "no_translation"):
         raise ValueError(f"unknown mode: {mode}")
 
-    viewmat_k = camera.viewmat.clone()
+    viewmats, Ks, width, height = stack_cameras(cameras)
+    viewmats_k = viewmats.clone()
     if mode == "correct":
-        viewmat_k[:3, 3] *= k
+        viewmats_k[:, :3, 3] *= k  # every camera's translation
 
     common = dict(
         quats=scene.quats,
         opacities=scene.opacities,
         colors=scene.colors,
-        Ks=camera.K[None],
-        width=camera.width,
-        height=camera.height,
+        Ks=Ks,
+        width=width,
+        height=height,
         sh_degree=None,
         packed=False,
     )
@@ -57,7 +58,7 @@ def run_mr4(
         rgb_a, alpha_a, _ = gsplat.rasterization(
             means=scene.means,
             scales=scene.scales,
-            viewmats=camera.viewmat[None],
+            viewmats=viewmats,
             near_plane=near_plane,
             far_plane=far_plane,
             **common,
@@ -65,7 +66,7 @@ def run_mr4(
         rgb_b, alpha_b, _ = gsplat.rasterization(
             means=scene.means * k,
             scales=scene.scales * k,
-            viewmats=viewmat_k[None],
+            viewmats=viewmats_k,
             near_plane=near_plane * k,
             far_plane=far_plane * k,
             **common,

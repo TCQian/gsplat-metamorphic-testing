@@ -28,7 +28,14 @@ from mr3_covariance import run_mr3
 from mr4_world_scale import run_mr4
 from mr5_permutation import run_mr5
 from repro_issues import repro_issue_630, repro_issue_764
-from scene import SCENE_MODES, GaussianScene, sample_cameras, sample_gaussians, sample_scene
+from scene import (
+    DEFAULT_MODES,
+    SCENE_MODES,
+    GaussianScene,
+    sample_cameras,
+    sample_gaussians,
+    sample_scene,
+)
 
 
 def scene_properties(scene: GaussianScene, cameras) -> Dict[str, float]:
@@ -72,6 +79,9 @@ def scene_properties(scene: GaussianScene, cameras) -> Dict[str, float]:
 def render_stats(scene: GaussianScene, cameras, near_plane=0.01, far_plane=100.0) -> Dict[str, object]:
     """Visibility of the scene across `cameras`, to flag renders that draw nothing.
 
+    `cam0_empty` is kept for old analyses; the relations now render every camera, so
+    `all_empty` is what marks a vacuous pass.
+
     Coverage comes from the rendered alpha; `opaque_frac_*` (alpha > 0.99) shows
     how much of the image is saturated, where hidden Gaussians cannot affect pixels. Visible-Gaussian counts come from
     gsplat's own culling (`meta["radii"] > 0`) and are None if that is unavailable.
@@ -103,6 +113,8 @@ def render_stats(scene: GaussianScene, cameras, near_plane=0.01, far_plane=100.0
         "opaque_frac_cam0": opaque[0].item(),
         "opaque_frac_mean": opaque.mean().item(),
         "n_empty_cams": int((coverage == 0).sum().item()),
+        "coverage_min": coverage.min().item(),  # the least-covered camera
+        "n_covered_px": int((alpha > 0).sum().item()),  # over all cameras
         "n_visible_cam0": None,
         "n_visible_any": None,
     }
@@ -143,14 +155,14 @@ def flatten_diff(prefix: str, diff, error: str = None) -> Dict[str, object]:
     return row
 
 
-def run_one_scene(
+def build_scene_and_cameras(
     scene_idx: int,
     mode: str,
     args: argparse.Namespace,
     device: str,
-) -> Dict[str, object]:
-    seed = args.seed + scene_idx
-    generator = torch.Generator(device="cpu").manual_seed(seed)
+):
+    """The scene and cameras of one scene index (the single place they are built, so replays match)."""
+    generator = torch.Generator(device="cpu").manual_seed(args.seed + scene_idx)
 
     n_gaussians = torch.randint(
         args.n_gaussians_min, args.n_gaussians_max + 1, (1,), generator=generator
@@ -163,6 +175,7 @@ def run_one_scene(
         scale_range=(args.scale_min, args.scale_max),
         opacity_range=(args.opacity_min, args.opacity_max),
         generator=generator,
+        camera_hint=(args.dist_min, args.dist_max, args.fov_deg, args.width / args.height),  # only dense_cover reads it
     ).to(device)
 
     cameras = [
@@ -176,13 +189,24 @@ def run_one_scene(
             generator=generator,
         )
     ]
+    return scene, cameras
+
+
+def run_one_scene(
+    scene_idx: int,
+    mode: str,
+    args: argparse.Namespace,
+    device: str,
+) -> Dict[str, object]:
+    seed = args.seed + scene_idx
+    scene, cameras = build_scene_and_cameras(scene_idx, mode, args, device)
 
     row: Dict[str, object] = {"scene_idx": scene_idx, "seed": seed, "mode": mode}
     row.update(scene_properties(scene, cameras))
     stats = render_stats(scene, cameras)
     row.update(stats["row"])
 
-    mr1 = run_mr1(scene, cameras[0])
+    mr1 = run_mr1(scene, cameras)
     row.update(flatten_diff("mr1_rgb", mr1.rgb, mr1.error))
     row.update(flatten_diff("mr1_alpha", mr1.alpha, mr1.error))
     row["mr1_verdict"] = verdict(
@@ -190,7 +214,7 @@ def run_one_scene(
     )
 
     if args.mr1_backgrounds:
-        mr1_bg = run_mr1(scene, cameras[0], use_backgrounds=True)
+        mr1_bg = run_mr1(scene, cameras, use_backgrounds=True)
         row.update(flatten_diff("mr1_bg_rgb", mr1_bg.rgb, mr1_bg.error))
 
     mr2 = run_mr2(scene, cameras)
@@ -210,13 +234,13 @@ def run_one_scene(
         row["mr2_error"] = None
     row["mr2_verdict"] = verdict(tuple(mr2.per_camera), mr2.error, TOLERANCES["mr2"])
 
-    mr3_correct = run_mr3(scene, cameras[0], mode="correct")
+    mr3_correct = run_mr3(scene, cameras, mode="correct")
     row.update(flatten_diff("mr3_correct_rgb", mr3_correct.rgb, mr3_correct.error))
     row["mr3_correct_verdict"] = verdict(
         (mr3_correct.rgb, mr3_correct.alpha), mr3_correct.error, TOLERANCES["mr3"]
     )
 
-    mr3_bug = run_mr3(scene, cameras[0], mode="xyzw_bug")
+    mr3_bug = run_mr3(scene, cameras, mode="xyzw_bug")
     row.update(flatten_diff("mr3_xyzwbug_rgb", mr3_bug.rgb, mr3_bug.error))
     # Fault injection: "violation" here means the injected bug was detected.
     row["mr3_xyzwbug_verdict"] = verdict(
@@ -224,7 +248,7 @@ def run_one_scene(
     )
 
     # MR4: sweep world-scale factors; record the worst one.
-    mr4_runs = [(k, run_mr4(scene, cameras[0], k)) for k in args.world_scales]
+    mr4_runs = [(k, run_mr4(scene, cameras, k)) for k in args.world_scales]
     mr4_diffs = tuple(d for _, r in mr4_runs for d in (r.rgb, r.alpha))
     mr4_error = next((r.error for _, r in mr4_runs if r.error), None)
     ok = [(k, r) for k, r in mr4_runs if r.rgb is not None]
@@ -249,13 +273,13 @@ def run_one_scene(
         row["mr4_exact_verdict"] = verdict(exact_diffs, exact_error, 0.0)
 
     # Fault injection: camera translation not scaled, at the largest factor.
-    mr4_bug = run_mr4(scene, cameras[0], max(args.world_scales), mode="no_translation")
+    mr4_bug = run_mr4(scene, cameras, max(args.world_scales), mode="no_translation")
     row.update(flatten_diff("mr4_bug_rgb", mr4_bug.rgb, mr4_bug.error))
     row["mr4_bug_verdict"] = verdict(
         (mr4_bug.rgb, mr4_bug.alpha), mr4_bug.error, TOLERANCES["mr4"]
     )
 
-    mr5 = run_mr5(scene, cameras[0], seed)
+    mr5 = run_mr5(scene, cameras, seed)
     row.update(flatten_diff("mr5_rgb", mr5.rgb, mr5.error))
     row["mr5_depth_tie"] = mr5.depth_tie
     row["mr5_verdict"] = verdict((mr5.rgb, mr5.alpha), mr5.error, TOLERANCES["mr5"])
@@ -267,15 +291,15 @@ def run_one_scene(
         row["mr4_verdict"] = "tie_ambiguous"
 
     # Fault injection: colors not permuted along with the other attributes.
-    mr5_bug = run_mr5(scene, cameras[0], seed, mode="misaligned")
+    mr5_bug = run_mr5(scene, cameras, seed, mode="misaligned")
     row.update(flatten_diff("mr5_bug_rgb", mr5_bug.rgb, mr5_bug.error))
     row["mr5_bug_verdict"] = verdict(
         (mr5_bug.rgb, mr5_bug.alpha), mr5_bug.error, TOLERANCES["mr5"]
     )
 
-    # All relations except MR2 render cameras[0] only; MR2 uses every camera.
-    flag_vacuous(row, [k for k in VERDICT_KEYS if k != "mr2_verdict"], stats.get("cam0_empty", False))
-    flag_vacuous(row, ["mr2_verdict"], stats.get("all_empty", False))
+    # Every relation renders every camera, so a pass proves nothing only if every camera is empty.
+    row["relations_cameras"] = "all"  # earlier runs rendered cameras[0] only (MR2 aside)
+    flag_vacuous(row, VERDICT_KEYS, stats.get("all_empty", False))
 
     return row
 
@@ -327,9 +351,9 @@ def build_argparser() -> argparse.ArgumentParser:
     p.add_argument(
         "--modes",
         nargs="+",
-        default=list(SCENE_MODES),
+        default=list(DEFAULT_MODES),
         choices=SCENE_MODES,
-        help="scene generator modes to run",
+        help="scene generator modes to run (dense_cover is opt-in)",
     )
     p.add_argument("--n-gaussians-min", type=int, default=20)
     p.add_argument("--n-gaussians-max", type=int, default=200)

@@ -24,7 +24,7 @@ python gsplat_mt/run_preliminary.py --n-scenes 20 --out results/refined_results.
 Useful flags (`--help` for the full list):
 
 - `--n-scenes`: scenes per mode
-- `--modes`: subset of `default opacity_extreme scale_tiny scale_huge anisotropic wide_spread far_clipped single`
+- `--modes`: subset of `default opacity_extreme scale_tiny scale_huge anisotropic wide_spread far_clipped single dense_cover`. The default is the first eight; `dense_cover` is opt-in so existing seeds reproduce. It raises N to at least 300 and sets the radius, Gaussian size and opacities from the camera distance, field of view and aspect ratio so Gaussians fill the frame about 4 layers deep (a standalone estimate gives 85-98% pixel coverage up to a 60 degree field of view, and 50-62% at 90 degrees)
 - `--world-scales`: MR4 scale factors k (default `0.01 0.0078125 0.25 4 100 128`; powers of two are also checked for exact equality)
 - `--n-gaussians-min/max`, `--width/--height`, `--n-cameras`
 - `--mr1-backgrounds`: also run MR1 with a background color set, to probe gsplat issue [#764](https://github.com/nerfstudio-project/gsplat/issues/764)
@@ -37,7 +37,9 @@ Tolerances (max abs pixel difference) are set in `gsplat_mt/metrics.py`: 1e-4 fo
 
 Every comparison also records `*_d_ssim`, a windowed structural-similarity score (1.0 = identical) that, unlike D_max/D_MAE, is locally averaged rather than per-pixel: it is diagnostic only and does not currently affect any verdict (see `gsplat_mt/metrics.py:ssim` and README_week12.md).
 
-Each scene also records visibility: `coverage_cam0`/`coverage_mean` (fraction of pixels with alpha > 0), `opaque_frac_cam0`/`opaque_frac_mean` (alpha > 0.99), `n_empty_cams`, and `n_visible_cam0`/`n_visible_any` (Gaussians surviving gsplat's culling). A `pass` on a render that draws nothing (camera 0 empty; for MR2, every camera empty) is reported as `vacuous_pass`.
+Every relation renders every camera of the scene in one batched call (before this, MR1, MR3, MR4 and MR5 rendered camera 0 only; rows record `relations_cameras=all`). The isolated-pixel rule is applied per camera image, and `mr5_depth_tie` is true if any camera has near-equal depths. A `pass` is `vacuous_pass` only if every camera is empty.
+
+Each scene also records visibility: `coverage_cam0`/`coverage_mean` (fraction of pixels with alpha > 0), `opaque_frac_cam0`/`opaque_frac_mean` (alpha > 0.99), `n_empty_cams`, and `n_visible_cam0`/`n_visible_any` (Gaussians surviving gsplat's culling), plus `coverage_min` (least-covered camera) and `n_covered_px` (covered pixels over all cameras). A `pass` on a render that draws nothing (camera 0 empty; for MR2, every camera empty) is reported as `vacuous_pass`.
 
 MR4 also records `mr4_exact_verdict`: over the power-of-two factors, where scaling is exact in binary, the two renders must be identical (tolerance 0, never relabeled). Each of MR3, MR4 and MR5 also runs a fault-injected variant (`mr3_xyzwbug`, `mr4_bug`, `mr5_bug`), where `violation` means the injected bug was detected.
 
@@ -62,6 +64,7 @@ sbatch soc-cluster-isolate-stage.sh # which stage of the projection first differ
 sbatch soc-cluster-root-cause.sh # conic differences against covariance conditioning, and gsplat's rasterizer arithmetic compiled and compared
 sbatch soc-cluster-diagnose-xl.sh # bisect samples of the 100,000-scene findings
 sbatch soc-cluster-xl.sh     # same runner, 100,000 scenes (the first 2000 equal the large-scale run)
+sbatch soc-cluster-allcam.sh # all-camera relations, dense_cover, then the undetected-fault study
 ```
 
 Each requests a single GPU, activates the `gsplat` conda env, and installs dependencies.
@@ -82,3 +85,4 @@ Each requests a single GPU, activates the `gsplat` conda env, and installs depen
 - `gsplat_mt/replicate_kernel_arithmetic.py` -- compiles gsplat's alpha / early-stop arithmetic and checks it against the renders
 - `gsplat_mt/diagnose_mr1_inputs.py` -- compares packed and unpacked projection outputs bit for bit for the Gaussian behind an MR1 cutoff flip
 - `gsplat_mt/probe_ties.py` -- how gsplat orders Gaussians with equal depths
+- `gsplat_mt/study_undetected_faults.py` -- replays scenes where a planted fault (MR3 `xyzw_bug`, MR4 `no_translation`, MR5 `misaligned`) was not detected and tests the cause: single Gaussian, visible Gaussians unmoved by the shuffle (re-tried with other shuffles), isotropic Gaussians, or Gaussians that never reach a pixel; records `depth_tie` so ordering cases can be excluded
