@@ -18,6 +18,7 @@ from typing import Literal, Optional, Sequence, Union
 
 import gsplat
 import torch
+from torch import Tensor
 from metrics import ImageDiff, compare_images
 from scene import Camera, GaussianScene, as_camera_list, stack_cameras
 
@@ -54,13 +55,16 @@ def run_mr5(
     near_plane: float = 0.01,
     far_plane: float = 100.0,
     tie_eps: float = 1e-6,
+    perm: Optional[Tensor] = None,
 ) -> MR5Result:
     if mode not in ("correct", "misaligned"):
         raise ValueError(f"unknown mode: {mode}")
 
-    perm = torch.randperm(
-        scene.n, generator=torch.Generator(device="cpu").manual_seed(seed)
-    ).to(scene.means.device)
+    # `perm` overrides the seeded random shuffle (used to try a shuffle with no fixed points).
+    if perm is None:
+        perm = torch.randperm(
+            scene.n, generator=torch.Generator(device="cpu").manual_seed(seed)
+        ).to(scene.means.device)
     colors_p = scene.colors if mode == "misaligned" else scene.colors[perm]
 
     tie = has_depth_tie(scene, cameras, near_plane, far_plane, tie_eps)
