@@ -5,9 +5,9 @@ This report is written to be read on its own. It covers what was tested, what wa
 ## Summary
 
 - **What was tested.** `gsplat` (version 1.5.3) is a GPU library that renders images from a cloud of soft, semi-transparent 3D Gaussians. We applied metamorphic testing to its image-rendering step: render the same scene in two ways that, by a known rule (a metamorphic relation), must give the same image, and check that the two images match. This works without knowing the correct image for any scene.
-- **How much.** 100,000 randomly generated scenes, checked with five metamorphic relations (defined below), plus deliberately broken versions of three of them to check the tests can catch real bugs.
-- **Result.** No crashes and no wrong images. Two of the five relations (several cameras at once; matrix vs size and rotation) matched exactly in every scene, and so did the scaling test when its factor is exact in binary. The shuffle test differed only in scenes with two Gaussians at nearly the same distance. The scaling test with other factors and the packed/unpacked test showed small differences in a small fraction of scenes (about 5% and about 0.5% of scenes), almost always at one or a few pixels. Every difference we examined was traced to a tiny rounding difference in the computer's arithmetic, which a hard yes/no decision inside the renderer then turned into a visible difference at that pixel.
-- **What it means.** We found no bug in the renderer. We found where and why its output is sensitive to rounding. The test setup reliably catches injected bugs, so it is useful as a regression and fuzzing tool, with caveats listed in section 5.
+- **How much.** 100,000 randomly generated scenes, checked with five metamorphic relations (defined below), plus deliberately broken versions of three of them to check the tests can catch real bugs. A second 100,000-scene run (section 7) repeated this with every relation rendering every camera of each scene, and follow-up experiments explained the remaining open cases.
+- **Result.** No crashes and no wrong images. Two of the five relations (several cameras at once; matrix vs size and rotation) matched exactly in every scene, and so did the scaling test when its factor is exact in binary. The shuffle test differed only in scenes with two Gaussians at nearly the same distance. The scaling test with other factors and the packed/unpacked test showed small differences in a small fraction of scenes (about 5% and about 0.5% of scenes), almost always at one or a few pixels. Every difference we examined was traced to a tiny rounding difference in the computer's arithmetic, which a hard yes/no decision inside the renderer then turned into a visible difference at that pixel. The second run, with all cameras, gave the same picture: the exact relations stayed exact, the nine new `violation`s were all explained, and no wrong image appeared.
+- **What it means.** We found no bug in the renderer. We found where and why its output is sensitive to rounding. The test setup reliably catches injected bugs, so it is useful as a regression and fuzzing tool, with caveats listed in section 5. Section 7 reports the latest run and the follow-up experiments.
 
 ## How to read this report: the basic idea
 
@@ -38,7 +38,7 @@ This report is written to be read on its own. It covers what was tested, what wa
 
 ## 1. What was run and what happened
 
-Three runs, each larger than the last. The 100,000-scene run includes the 2,000-scene run as its first part.
+Three runs, each larger than the last. The 100,000-scene run includes the 2,000-scene run as its first part. Section 7 adds a second 100,000-scene run with all cameras.
 
 | Run | Scenes | Purpose |
 | --- | --- | --- |
@@ -48,7 +48,7 @@ Three runs, each larger than the last. The 100,000-scene run includes the 2,000-
 
 Each scene was random: 1 to 5,000 Gaussians (one scene type uses exactly one), 1 to 8 cameras (only MR2 uses more than the first camera, see below), five image sizes, and random Gaussian sizes, opacities and camera distances. Eight scene types push the library toward awkward cases: nearly transparent or fully opaque Gaussians, tiny Gaussians, huge Gaussians, extremely flat "needle" Gaussians, Gaussians spread far around or behind the camera, Gaussians far away, and a single Gaussian. The 100,000 scenes took 43 minutes on one GPU (about 19 ms per scene). Nothing crashed, and no run was cut short.
 
-**Which cameras are used.** MR2 renders every camera of the scene. MR1, MR3, MR4 and MR5, and their planted-fault versions, render only the first camera ("camera 0"). So every image statistic below that mentions camera 0, such as an empty image or the share of covered pixels, describes the image these relations actually compare, and the other cameras are tested only by MR2.
+**Which cameras are used (in this first 100,000-scene run).** MR2 renders every camera of the scene. MR1, MR3, MR4 and MR5, and their planted-fault versions, rendered only the first camera ("camera 0"). So every image statistic in sections 1 to 6 that mentions camera 0, such as an empty image or the share of covered pixels, describes the image these relations compared, and the other cameras were tested only by MR2. This was changed afterwards: section 7 reports a second run in which every relation renders every camera.
 
 **Results over 100,000 scenes** (1,424 scenes produced an empty image from camera 0, so their results count as `vacuous_pass`; MR2 only counts as vacuous when every camera is empty, which happened in 441 scenes):
 
@@ -71,9 +71,9 @@ What these say:
 
 ### Weaknesses of this study
 
-**1. The planted shuffle fault was not detected in 12,440 of 98,576 non-empty scenes.** The other two planted faults (rotation order, unscaled camera position) were detected in every non-empty scene.
+**1. The planted shuffle fault was not detected in 12,440 of 98,576 non-empty scenes (explained and largely removed by the all-camera run and a new shuffle; see section 7).** The other two planted faults (rotation order, unscaled camera position) were detected in every non-empty scene.
 - 12,363 of the 12,440 are the single-Gaussian scenes, where a shuffle cannot change anything, so no fault can show.
-- The other 77 (59 with Gaussians placed far from the camera, 17 with Gaussians spread widely around and behind the camera, 1 with extreme opacities) are unexplained. In 75 of them exactly one Gaussian is visible from camera 0 (and 2 in the other two); among all scenes with one visible Gaussian, the fault was detected in 1,258 and missed in 75 (5.6%). A likely cause is that the random shuffle left that one Gaussian in its original position, so the planted fault could not change its color; the scenes have only 10 to 176 Gaussians, which makes this likely at about the observed rate. This was not checked, because the shuffle and the visible Gaussian are not recorded in the results, so confirming it needs a rerun on the GPU cluster.
+- The other 77 (59 with Gaussians placed far from the camera, 17 with Gaussians spread widely around and behind the camera, 1 with extreme opacities) are unexplained. In 75 of them exactly one Gaussian is visible from camera 0 (and 2 in the other two); among all scenes with one visible Gaussian, the fault was detected in 1,258 and missed in 75 (5.6%). A likely cause is that the random shuffle left that one Gaussian in its original position, so the planted fault could not change its color; the scenes have only 10 to 176 Gaussians, which makes this likely at about the observed rate. Section 7 confirms this by replaying these scenes: 58 of the 77 are detected as soon as the other cameras are rendered, and the rest are the single-Gaussian case, which a shuffle with no fixed points detects.
 - The consequence is limited but real: for these scenes a `pass` from the shuffle test says nothing about the shuffle, though the tests on those scenes could still catch other faults.
 
 **2. A `pass` is weaker than it looks, because most pixels are background.** A pixel is "covered" if the rendered alpha there is above 0, which means at least one Gaussian contributed at least 1/255 of opacity (gsplat skips anything below that); every other pixel is background and shows the plain background color in both renders. Among the 98,576 non-empty scenes (camera 0):
@@ -85,10 +85,10 @@ What these say:
 | under 10% | 47.5% |
 | under 50% | 75.4% |
 
-The median is 11% coverage, about 2,000 covered pixels. 8,490 scenes have fewer than 100 covered pixels and 549 fewer than 10. Fully opaque pixels (alpha above 0.99) are rarer still: the median scene has none, and only 6,301 scenes have more than half their pixels opaque. Background pixels are trivially equal in the two renders, so only the covered pixels can show a difference. The meaning of `pass` therefore grows with the number of covered pixels, and the 100,000 passes are not equally strong.
+The median is 11% coverage, about 2,000 covered pixels. 8,490 scenes have fewer than 100 covered pixels and 549 fewer than 10. Fully opaque pixels (alpha above 0.99) are rarer still: the median scene has none, and only 6,301 scenes have more than half their pixels opaque. Background pixels are trivially equal in the two renders, so only the covered pixels can show a difference. The meaning of `pass` therefore grows with the number of covered pixels, and the 100,000 passes are not equally strong. Section 7 reports a new scene type that raises coverage to a median of 45%, and why it does not fill the frame.
 - What softens this: the planted faults were still detected in every non-empty scene for the rotation and camera-position faults, so even sparse images are enough to reveal those mistakes. The scene types with large Gaussians (about 75% coverage for the huge-Gaussian type) give far stronger passes.
 - What does not: a subtle difference that touches few pixels (the kind this study mostly found) is easiest to miss in a sparse image, and a clean sparse scene proves little about the blending of overlapping Gaussians. An early design problem of this kind was already fixed once: the huge-Gaussian scene type used to produce fully opaque images, where Gaussians behind the front layer could not change any pixel, and its size range was reduced.
-- Possible remedy (not done): report the number of covered or overlapping pixels alongside each verdict, and weight or filter passes by it, or add more scene types with dense coverage.
+- Remedy: the later runs record the number of covered pixels for each scene (so a pass can be weighted by it) and add a scene type with dense coverage (section 7). The weakness is reduced, not removed: 42.5% of non-empty scenes are still under 10% coverage.
 
 ## 2. How bisection works
 
@@ -156,7 +156,7 @@ So the explanation has two parts: **rounding creates a tiny difference, and one 
 
 **What is not simply "float32 precision".** Rounding is the cause of the small difference, but not of its visible size: that comes from the hard rules and from how thin the Gaussian is. Also, there is an unavoidable piece that is neither: when two Gaussians sit at exactly the same distance, the output depends on input order by design, and that is not a numerical error at all.
 
-**Does any case point to something other than rounding?** Not among those examined. The only cases not individually shown at pixel level are the remaining differing pixels in scenes where only the worst pixel was bisected (presumed to share the same cause).
+**Does any case point to something other than rounding?** Not among those examined. The only cases not individually shown at pixel level are the remaining differing pixels in scenes where only the worst pixel was bisected (presumed to share the same cause). In the all-camera run (section 7), eight of the nine new `violation`s are fully removed by taking out the Gaussians bisection kept, so they are fully accounted for. The ninth leaves one pixel of 1.5e-4 unexplained, and in several scenes other cameras show a few over-tolerance pixels that were not bisected.
 
 ## 5. Is this metamorphic testing useful?
 
@@ -165,7 +165,7 @@ So the explanation has two parts: **rounding creates a tiny difference, and one 
 **What it does well**
 
 - It detects real faults. The three deliberately broken variants were caught in every scene with a non-empty image, so a `pass` from the same tests on correct code is meaningful.
-- It is cheap: about 19 ms per scene, 100,000 scenes in 43 minutes. It needs no reference images and no hand-written expected values.
+- It is cheap: about 19 ms per scene with camera 0 only (100,000 scenes in 43 minutes) and 60 ms per scene with every camera (102 minutes). It needs no reference images and no hand-written expected values.
 - The exact-match tests (MR2, MR3, MR4 with binary-exact factors) are very strict. They hold bit for bit over 100,000 scenes, so any future change that breaks one of those is immediately visible.
 - It exposed a fact that is not obvious from reading the code: the two code paths (packed vs normal) are not bit-for-bit identical, with about half of the Gaussian shapes differing in the last digits, and the difference is real and measurable.
 - It could be rerun on each new release of the library, or after any change to the rendering code, to catch regressions.
@@ -175,7 +175,7 @@ So the explanation has two parts: **rounding creates a tiny difference, and one 
 - It found no incorrect image, so we cannot say it finds bugs at a useful rate in this version.
 - It had to be tuned to avoid false alarms. 5,406 of 100,000 scenes were flagged at some level, and nearly all were harmless rounding. Without the triage described in section 3 (the labels and the bisection), the output would be too noisy to read. The cost of reading the findings is the real cost of using it.
 - It covers only part of the library: rendering an image from scratch (the forward pass), with one kind of random scene, one library version, and one type of GPU (the university cluster's NVIDIA cards). It does not cover the backward pass used in training, other camera types, other color options or the library's other rendering modes.
-- Most test images are mostly background, so a pass is weaker than it looks.
+- Most test images are mostly background, so a pass is weaker than it looks (section 7 measures the effect of a denser scene type).
 - Some of the explanations (especially the exact compiler pairing) hold for one compiled build.
 
 **Is it worth using as a fuzzing tool for `gsplat`?** Yes, with a clear purpose: as a regression test and a screen for rendering changes, where an exact match is expected and any new difference is meaningful. It is less suited to hunting for bugs in code that has not changed. If it is used that way, three things would make it more valuable: add relations for the backward pass and other render options; keep the triage labels and the bisection tool so new findings are sorted automatically; and make the near-tied-distance and needle-shaped scene types a larger share of the random mix, since those are where all the findings came from.
@@ -206,6 +206,85 @@ So the explanation has two parts: **rounding creates a tiny difference, and one 
 
 **Suggested use.** Rather than changing the library, use a double-precision reference implementation inside the test harness to judge whether a flagged difference is within the expected rounding range. That would let the oracle separate "rounding amplified by a thin Gaussian" from "something genuinely wrong" without relying on the manual triage used in this study.
 
+## 7. Update: every relation on every camera, and follow-up experiments
+
+After the study above, three weaknesses were addressed: MR1, MR3, MR4 and MR5 only rendered camera 0, most pixels were background, and the planted shuffle fault was sometimes missed.
+
+### What changed
+
+- **Every relation now renders every camera** of a scene in one batch (before, only MR2 did). The 0.05% pixel rule is applied to each camera's image separately, a scene counts as tied if any camera has near-equal depths, and a result is `vacuous_pass` only if every camera is empty.
+- **A new scene type, `dense_cover`**, fills the frame with about four layers of semi-transparent Gaussians (opacity 0.05 to 0.4), with its size set from the camera distance and field of view.
+- **A study of undetected planted faults** that replays each missed scene and tests the cause, and **follow-up experiments** on the open cases (below).
+
+### The second 100,000 scenes
+
+All nine scene types (the eight above plus `dense_cover`), every camera, seed 2000; 102 minutes on one GPU (60 ms per scene); no crashes and no errors. The first 20,000 scenes of this run were also run separately, and every verdict was identical, so the runs are reproducible.
+
+| Relation | `pass` | `isolated_discontinuity` | `tie_ambiguous` | `violation` | `vacuous_pass` |
+| --- | --- | --- | --- | --- | --- |
+| MR1 packed vs normal layout | 97,729 | 1,898 | 0 | 1 | 372 |
+| MR2 several cameras at once | 99,628 | 0 | 0 | 0 | 372 |
+| MR3 matrix vs size and rotation | 99,628 | 0 | 0 | 0 | 372 |
+| MR4 exact factors | 99,628 | 0 | 0 | 0 | 372 |
+| MR4 any factor | 85,045 | 14,071 | 504 | 8 | 372 |
+| MR5 shuffled order | 97,045 | 0 | 2,583 | 0 | 372 |
+
+- **The exact relations stay exact with all cameras rendered together:** MR2, MR3 and exact-factor MR4 are zero in all 99,628 non-empty scenes.
+- **MR5 again differs only in tied scenes:** 2,583 of 29,955 tied scenes and none of the 69,673 untied ones. More scenes count as tied (30%, against 20%), because any camera can have a tie.
+- **There are more findings per scene, because there are more images per scene, not because anything behaves differently.** With one camera the rates match the first run (MR4 `isolated_discontinuity` 4.7% against 4.6%; MR1 0.56% against 0.53%). They then rise steadily with the camera count, to 18.5% and 3.4% at eight cameras, where the first run's rates stay flat. Overall they are 12.5% (MR4) and 2.0% (MR1) in the eight original scene types.
+- **Planted faults:** the rotation and camera-position faults were detected in every non-empty scene. The shuffle fault was undetected in 11,077 scenes: 11,044 single-Gaussian scenes and 33 others.
+
+### The nine `violation`s, explained
+
+Bisection previously only looked at camera 0, so a script was written that finds the camera showing the problem and bisects there. Each of the nine scenes was bisected at its worst camera. The condition number below is how strongly rounding errors are amplified for the kept Gaussian's conic (about the square of its length-to-width ratio; a round Gaussian has about 1).
+
+| Relation | Scene type | Gaussians | Pixels over tolerance (worst camera) | Kept Gaussians | Condition number | Cause | Pixels over tolerance without the kept Gaussians |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| MR1 | needles | 1,740 | 65 (limit 32), D_max 3.3e-4 | 1 | 27,000 | smooth difference | 0 |
+| MR4 | needles | 17 | 209, D_max 1.5e-3 | 1 | 20,000 | cutoff flip | 0 |
+| MR4 | needles | 11 | 45, D_max 1.3e-4 | 1 | 20,000 | smooth difference | 0 |
+| MR4 | needles | 26 | 136, D_max 3.4e-3 | 1 | 13,000 | cutoff flip | 0 |
+| MR4 | needles | 12 | 37, D_max 2.0e-4 | 1 | 19,000 | smooth difference | 0 |
+| MR4 | needles | 135 | 806, D_max 4.0e-4 | 1 | 26,000 | smooth difference | 1 (D_max 1.5e-4) |
+| MR4 | extreme opacities | 108 | 1, D_max 4.7e-3 | 5 | 1.1 to 5.8 | early stop | 0 |
+| MR4 | extreme opacities | 120 | 1, D_max 1.5e-2 | 11 | 1.1 to 3.8 | early stop | 0 |
+| MR4 | extreme opacities | 71 | 1, D_max 7.2e-2 | 14 | 1.0 to 3.9 | early stop | 0 |
+
+- **Four smooth differences, two cutoff flips, three early stops.** All are patterns from section 3, and none is a new kind of cause.
+- **The six one-Gaussian cases are all needles** (condition numbers 13,000 to 27,000), the same needle shape seen before. The three early stops involve round Gaussians (condition numbers close to 1) with opacity 0.999 or 1, where the remaining light at the pixel crosses 0.0001 in one render but not the other. They exceed the 0.004 cutoff bound because the pixel is nearly opaque.
+- **Why they became `violation`s.** Most of the one-Gaussian cases fail the pixel-count rule, not the size rule: a needle's long edge lies near a decision line, so one rounding difference moves many pixels at once (209 and 136 pixels for the two cutoff flips). For these, one Gaussian explains the whole group, since removing it leaves nothing over tolerance. That the other pixels of the group flip for the same reason as the worst pixel was not checked pixel by pixel.
+- **Limits.** Only the worst pixel of the worst camera was bisected. In four scenes another camera also shows one or two over-tolerance pixels (up to 2.7e-3), which were not examined. In the last MR4 needle scene one pixel of 1.5e-4 remains after removing the kept Gaussian, with a cause not found.
+
+### Why the shuffle fault was missed, and how it is fixed
+
+Replaying the missed scenes (single-Gaussian scenes skipped, and none has a depth tie, so the order of blending is not involved):
+
+| Run | Missed | Cause |
+| --- | --- | --- |
+| First run (camera 0 only) | 77 of 86,213 | 58 are detected once the other cameras are rendered; 18 and 1 are the cases below |
+| Second run (all cameras) | 33 of 88,584 | 30 fixed points, 3 never reach a pixel (below) |
+
+- **Fixed points.** The planted fault leaves colors in place while shuffling everything else. A Gaussian whose position the shuffle does not change keeps the right color, so if every visible Gaussian happens to stay in place, nothing changes. With few Gaussians that happens by chance. Re-running these scenes with 16 other shuffles detects the fault on average in 92% of tries.
+- **A shuffle with no fixed points detects all 33.** Using a shuffle that moves every Gaussian, all 33 missed scenes are detected, and the correct shuffle relation still passes in all 33 (no false alarm). So the planted fault is a property of the chosen shuffle, not a weakness of the relation. This was tested on the 33 scenes only; the full run was not repeated with such a shuffle.
+- **The three "never reach a pixel" scenes.** In each, the only Gaussian the random shuffle moved that survives culling (the renderer's early step that discards Gaussians that cannot appear in a given camera: behind it, outside the near and far limits, or with a footprint entirely off the image) never reaches a pixel, even when rendered alone, although its opacity (0.15 to 0.61) is far above the 1/255 cutoff. Its footprint is off the pixel grid or off screen. Every Gaussian that does reach a pixel stayed in place, so these are also fixed-point cases, and the shuffle with no fixed points detects them too.
+
+### Does a denser scene type fix the background problem?
+
+Partly. The median share of covered pixels is 44% for `dense_cover` (quartiles 36% and 55%; none of its 11,060 scenes is under 10% and 2% are above 80%), against 11% for the other scene types, except huge Gaussians (74%). It does not fill the frame, though, and the prediction from a simple simulation (85% to 98%) was wrong.
+
+An experiment on 60 of these scenes (replayed coverage matches the run exactly):
+
+- **Not culling.** Every Gaussian survives culling (100% are kept in at least one camera), so coverage is not limited by Gaussians being discarded.
+- **Two limits.** Making every Gaussian two or three times larger raises the median coverage from 43% to 59% and 74%. For small scenes (300 Gaussians) the effect is large (to 70 to 94% at three times the size), so footprint size limits them. For large scenes (over 2,000 Gaussians) it hardly helps (for example 35% to 46%, 28% to 34%), so for those the region covered by the Gaussians as a whole limits coverage. The covered region is smaller on screen than the simulation assumed; why was not found.
+- **Overall effect.** Because `dense_cover` is one scene type in nine, 42.5% of non-empty scenes are still under 10% coverage (47.5% before), so the issue is reduced, not solved.
+
+### What this changes
+
+- The conclusions of sections 1 to 6 hold for all cameras: no wrong image, exact relations exact, and every finding examined explained by rounding amplified by a hard rule.
+- The planted shuffle fault should use a shuffle with no fixed points. With the all-camera run and this change, the three planted faults would be detected in every non-empty scene in the cases tested.
+- The nine new `violation`s are not bugs: they are the known patterns, in needle-shaped or nearly opaque scenes, and mostly arise from a pixel-count rule (0.05% of an image) that a single needle can exceed. A rule that also looks at the condition number or the number of Gaussians involved could separate them from `violation`s that matter, but this was not tried.
+- Rendering every camera costs about three times the run time and finds about three to four times as many rounding cases per scene. Whether that is worth it depends on the goal: for finding rare patterns it helps, for a regression check one camera per scene would find the same kinds of cases at a third of the cost.
+
 ## Details
 
-The weekly notes `README_week7.md` to `README_week12.md` hold the full measurements, the scripts used and the open caveats for each stage.
+The weekly notes `README_week7.md` to `README_week13.md` hold the full measurements, the scripts used and the open caveats for each stage.

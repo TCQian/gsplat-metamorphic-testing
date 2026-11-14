@@ -54,13 +54,13 @@ Options: `--faults`, `--skip-modes` (single-Gaussian scenes are trivially undete
 3. The study on that CSV, single-Gaussian scenes skipped (`results/undetected_allcam.csv`).
 4. The study on the 100,000-scene CSV (`results/xl_scale.csv`) for the MR5 fault, single-Gaussian scenes skipped (`results/undetected_xl.csv`), with the default sampling arguments of that run.
 
-The script has since been changed to the 100,000-scene run (the four steps above are commented out in the script, since their results exist); it has not been run yet, so the Results section describes the version above.
+The script was then changed to the 100,000-scene run (the four steps above are commented out in the script, since their results exist): the same nine modes and seed 2000, then the study on its CSV, writing `results/allcam_100000.csv` and `results/undetected_allcam_100000.csv` (job 1102754). Its results are in the last Results section.
 
 Step 4 replays scenes built with the new builder; for the original eight modes it builds the same scenes as before (`camera_hint` is only read by `dense_cover`), and the study renders them with all cameras, so it also shows whether the missed faults are caught once every camera is used.
 
 ## Not done
 
-- The 100,000-scene run was not repeated with all cameras. Step 2 of the script ran 20,000 scenes (seed 2000, nine modes) instead, so its counts are not directly comparable with the 100,000-scene tables (different seed and size, and a ninth scene type). At 60 ms per scene with all cameras (19 ms before), 100,000 scenes would take about 100 minutes.
+- The first job (1102516) ran 20,000 scenes, not 100,000, so its counts are not directly comparable with the earlier camera-0 100,000-scene tables. The 100,000-scene all-camera run followed as job 1102754.
 - The changes were not run locally (no GPU or PyTorch there); the cluster run was their first execution. It finished without errors or crashes.
 
 ## Results
@@ -121,7 +121,74 @@ Median coverage (share of pixels with alpha > 0, mean over cameras), per scene t
 - MR3 and MR4 faults had no undetected non-empty scene in either run.
 - The remaining miss rate is 0.03% of non-single scenes, against 0.09% before.
 
-### Consequences for the earlier claims
+### Consequences for the earlier claims (20,000-scene run)
 
 - The concluding report's statements that MR1, MR3, MR4 and MR5 use camera 0 only, and its coverage and planted-fault numbers, describe the earlier run, not the current code.
 - A shuffle fault that leaves the visible Gaussians in place could be avoided by drawing the shuffle without fixed points (a derangement), or by trying a second shuffle; not done.
+
+## Results: 100,000 scenes, all cameras (job 1102754)
+
+102 minutes on one H100 (60 ms per scene, median 48 ms), no crashes and no fatal errors. Nine modes, seed 2000, 1-8 cameras per scene (`results/allcam_100000.csv`). The first 20,000 scenes give verdicts identical to `allcam_20000.csv` in every relation (0 differences), so the sampler and the relations reproduce.
+
+| Relation | `pass` | `isolated_discontinuity` | `tie_ambiguous` | `violation` | `vacuous_pass` |
+| --- | --- | --- | --- | --- | --- |
+| MR1 packed vs unpacked | 97,729 | 1,898 | 0 | 1 | 372 |
+| MR2 batched vs individual cameras | 99,628 | 0 | 0 | 0 | 372 |
+| MR3 covariance vs scale+quat | 99,628 | 0 | 0 | 0 | 372 |
+| MR4 exact (power-of-two k) | 99,628 | 0 | 0 | 0 | 372 |
+| MR4 any k | 85,045 | 14,071 | 504 | 8 | 372 |
+| MR5 permutation | 97,045 | 0 | 2,583 | 0 | 372 |
+
+- **Exact relations:** MR2, MR3 and the MR4 power-of-two check are exactly 0 in all 99,628 non-empty scenes, with every camera rendered in one batch.
+- **Empty images:** 372 scenes (0.4%) are empty from every camera (342 `far_clipped`, 16 `wide_spread`, 13 `single`, 1 `opacity_extreme`).
+- **MR5:** the permutation changes the image in 2,583 of the 29,955 tied scenes (8.6%) and in none of the 69,673 untied ones. 30% of non-empty scenes are tied (any camera), against 20% with camera 0 only.
+- **Largest differences:** 3.9e-3 for MR1 and MR4 `isolated_discontinuity` (the cutoff bound); 0.28 for `tie_ambiguous`, 177 of the 504 above 4e-3.
+- **Planted faults:** MR3 and MR4 faults detected in every non-empty scene (0 undetected). MR5: undetected in 11,077 scenes, 11,044 of them `single` (N = 1) and 33 not.
+
+### New violations
+
+All of these are in scenes with no depth tie except the MR1 one, and none was diagnosed (the diagnosis tools look at camera 0 only).
+
+| Relation | Scene | Mode | N | Cameras | Pixels over tolerance (worst image) | D_max |
+| --- | --- | --- | --- | --- | --- | --- |
+| MR1 | 42081 | `anisotropic` | 1,740 | 6 | 65 (limit 32 at 256x256) | 3.3e-4 |
+| MR4 | 4896 | `anisotropic` | 17 | 5 | 209 | 1.5e-3 |
+| MR4 | 34408 | `anisotropic` | 11 | 4 | 45 | 1.8e-3 |
+| MR4 | 38581 | `opacity_extreme` | 108 | 7 | 1 | 4.7e-3 |
+| MR4 | 42367 | `anisotropic` | 26 | 5 | 136 | 3.4e-3 |
+| MR4 | 69294 | `anisotropic` | 12 | 8 | 37 | 2.0e-4 |
+| MR4 | 77409 | `opacity_extreme` | 120 | 7 | 1 | 1.5e-2 |
+| MR4 | 79993 | `anisotropic` | 135 | 6 | 806 | 2.7e-3 |
+| MR4 | 94509 | `opacity_extreme` | 71 | 7 | 1 | 7.2e-2 |
+
+- The MR1 violation is the first in any run. Its D_max (3.3e-4) is far below the 4e-3 cutoff bound; it fails only the pixel-count rule, in a scene that is fully covered (98.5% opaque pixels) and tied in some camera, with 1,740 Gaussians. The earlier runs' MR1 findings were all single-pixel cutoff flips. Its cause is not known; thin `anisotropic` Gaussians (an earlier smooth conic difference) and the early stop are the mechanisms seen before, not tested here.
+- The MR4 violations fall into the two groups seen before: `anisotropic` scenes with tens to hundreds of pixels at small D_max (smooth conic difference, by analogy) and `opacity_extreme` scenes with one pixel above the cutoff bound (the early-stop pattern, by analogy). Eight in 100,000 scenes, against 5 in the camera-0 run. The analogy is untested here.
+- The first scene (4896) is the one already listed in the 20,000-scene run.
+
+### Rates by camera count (original eight modes, 88,940 scenes)
+
+| Cameras | MR4 isolated | MR1 isolated | Scenes |
+| --- | --- | --- | --- |
+| 1 | 4.7% | 0.56% | 10,992 |
+| 2 | 8.0% | 1.05% | 11,150 |
+| 4 | 11.6% | 1.69% | 11,109 |
+| 8 | 18.5% | 3.41% | 11,168 |
+
+Overall 12.5% (MR4) and 2.0% (MR1), against 4.6% and 0.53% with camera 0 only. The 20,000-scene table already showed the effect; the rates with one camera again equal the old ones, and the 100,000 scenes put the increase beyond sampling noise.
+
+### Coverage
+
+Median coverage by scene type: `scale_huge` 0.74, `dense_cover` 0.45, `far_clipped` 0.21, `wide_spread` 0.18, `default` 0.13, `anisotropic` 0.12, `opacity_extreme` 0.12, `scale_tiny` 0.04, `single` 0.006. `dense_cover` quartiles are 0.36, 0.45, 0.55; none of its 11,060 scenes is under 10% coverage and 2% are above 80%, as in the 20,000-scene run. Over all non-empty scenes the median is 0.16, and 42.5% are under 10% coverage (47.8% excluding `dense_cover`; 47.5% in the camera-0 run). The median is about 9,400 covered pixels per scene over all cameras. The mode adds covered pixels to one scene type in nine and leaves the overall share of sparse scenes nearly unchanged.
+
+### Undetected planted faults (single-Gaussian scenes skipped)
+
+33 of 88,584 non-empty scenes (0.037%), against 77 of 86,213 (0.09%) with camera 0 only. None has a depth tie.
+
+| Cause | Scenes |
+| --- | --- |
+| `visible_all_fixed_points` | 30 |
+| `affected_gaussians_contribute_nothing` | 3 |
+
+- The 30 fixed-point scenes: every visible Gaussian stayed at its index under the shuffle. Re-running with 16 other shuffles detects the fault in 92% of tries on average, so these are a property of the shuffle, as in the earlier studies. The 33 include the 5 undetected scenes of the 20,000-scene run, since its scenes are the first 20,000 here.
+- The 3 `contribute_nothing` scenes: the swapped Gaussians survive culling but never reach a pixel. Not further examined.
+- MR3 and MR4 planted faults were never undetected.
