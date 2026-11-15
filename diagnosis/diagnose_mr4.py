@@ -34,7 +34,11 @@ threshold); if it did not change and the kept pair has a depth gap of about one
 float32 step, the blend order flipped. `--by T` picks the pixel with the largest
 relative transmittance change instead of the largest color difference.
 `--scenes-from CSV --where col=value` bisects every matching scene at its
-mr4_worst_k and prints a count per class.
+mr4_worst_k, at the camera that shows it, falling back to the alpha image when
+the rgb image has nothing over tolerance. Each result gets a PATTERN (cutoff
+flip, depth-order flip, early stop, smooth difference, other; see pattern_of).
+`--out FILE` writes one JSON line per scene as it goes, `--resume` continues a
+file after a timeout, and `--summarize FILE...` prints the pattern counts.
 
 The relations render every camera, so a finding can be in any camera's image.
 `--camera worst` (the default) picks, per scene, the camera with the largest
@@ -51,10 +55,11 @@ Usage (from the repository root):
 
 from __future__ import annotations
 
+import argparse
+import csv
+import json
 import sys
 from pathlib import Path
-
-import argparse
 
 import gsplat
 import torch
@@ -152,6 +157,32 @@ def render(scene, cam, k, with_meta=False):
     return rgb[0], alpha[0, ..., 0]
 
 
+def render_mode(cam, packed):
+    """MR1 render of one camera with packed=True or False: f(scene, with_meta) -> (rgb, alpha[, meta])."""
+
+    def f(scene, with_meta):
+        rgb, alpha, meta = gsplat.rasterization(
+            means=scene.means,
+            quats=scene.quats,
+            scales=scene.scales,
+            opacities=scene.opacities,
+            colors=scene.colors,
+            viewmats=cam.viewmat[None],
+            Ks=cam.K[None],
+            width=cam.width,
+            height=cam.height,
+            near_plane=NEAR,
+            far_plane=FAR,
+            sh_degree=None,
+            packed=packed,
+        )
+        if with_meta:
+            return rgb[0], alpha[0, ..., 0], meta
+        return rgb[0], alpha[0, ..., 0]
+
+    return f
+
+
 def subset(scene, idx):
     return GaussianScene(**{f: getattr(scene, f)[idx] for f in ("means", "scales", "quats", "opacities", "colors")})
 
@@ -208,6 +239,54 @@ def alpha_estimates(meta, g, y, x):
         sigma = 0.5 * (a * dx * dx + c * dy * dy) + b * dx * dy
         out.append(f"{name}: {min(0.999, (op * torch.exp(-sigma)).item()):.6f}")
     return ", ".join(out)
+
+
+def alpha_center(meta, g, y, x):
+    """Alpha of Gaussian g at the centre of pixel (y, x), recomputed in torch from gsplat's meta; None if unavailable."""
+    try:
+        mx, my = meta_at(meta, "means2d", g)
+        a, b, c = meta_at(meta, "conics", g)
+        op = meta_at(meta, "opacities", g)
+    except Exception:  # noqa: BLE001
+        return None
+    dx, dy = mx - (x + 0.5), my - (y + 0.5)
+    sigma = 0.5 * (a * dx * dx + c * dy * dy) + b * dx * dy
+    return min(0.999, (op * torch.exp(-sigma)).item())
+
+
+def condition_numbers(scene, keep, cam):
+    """Condition number (larger over smaller eigenvalue) of each kept Gaussian's 2D conic in `cam`."""
+    sub = subset(scene, torch.tensor(keep, device=scene.means.device))
+    _, _, meta = render(sub, cam, 1.0, with_meta=True)
+    out = []
+    for a, b, c in meta["conics"][0].tolist():
+        tr, det = a + c, a * c - b * b
+        disc = max((tr / 2) ** 2 - det, 0.0) ** 0.5
+        lo = tr / 2 - disc
+        out.append((tr / 2 + disc) / lo if lo > 0 else float("nan"))
+    return out
+
+
+ALPHA_CUTOFF = 1.0 / 255.0
+
+
+def pattern_of(cls, n_keep, min_t, near_cutoff):
+    """The pattern of a bisection result, read off measured values:
+    depth-order flip  same transmittance, a kept pair one float32 step apart in depth
+    early stop        transmittance changed and final T is near the 1e-4 early-stop threshold
+    cutoff flip       transmittance changed and exactly one kept Gaussian has alpha within 1% of 1/255
+    smooth difference one kept Gaussian, nothing skipped or reordered
+    other             anything else (needs a manual look)
+    """
+    if cls == "depth-order":
+        return "depth-order flip"
+    if cls == "transmittance-changed":
+        if 1e-5 <= min_t <= 5e-4:
+            return "early stop"
+        return "cutoff flip" if near_cutoff == 1 else "other"
+    if cls == "unclassified" and n_keep == 1:
+        return "smooth difference"
+    return "other"
 
 
 def rel_t_change(alpha_a, alpha_b):
@@ -334,12 +413,25 @@ def bisect(scene, cam, k, tol=TOL, by="color", pixel=None, render_a=None, render
     else:
         note = "neither a transmittance change nor a near-tied pair"
         cls = "unclassified"
+    near_cutoff = 0
+    for j in range(len(keep)):
+        al = [alpha_center(m, j, y, x) for m in (ma, mb)]
+        if any(v is not None and abs(v - ALPHA_CUTOFF) <= 0.01 * ALPHA_CUTOFF for v in al):
+            near_cutoff += 1
+    kappa = condition_numbers(scene, keep, cam) if len(keep) <= 50 else []
+    pattern = pattern_of(cls, len(keep), min_t, near_cutoff)
     print(f"  CLASS: {cls} ({len(keep)} Gaussians, rel T change {rel_t:.1e}, diff {(rb[y, x] - ra[y, x]).abs().max().item():.1e}): {note}")
+    print(f"  PATTERN: {pattern} ({near_cutoff} kept Gaussian(s) with alpha within 1% of 1/255; kappa {['%.3g' % v for v in kappa[:6]]})")
     return {
         "class": cls,
+        "pattern": pattern,
         "n_keep": len(keep),
         "rel_t": rel_t,
+        "min_t": min_t,
         "min_gap": min(gaps) if gaps else None,
+        "near_cutoff": near_cutoff,
+        "kappa": kappa,
+        "diff": (rb[y, x] - ra[y, x]).abs().max().item(),
         "keep": keep,
         "pixel": (y, x),
     }
@@ -384,25 +476,111 @@ def camera_table(cameras, render_a, render_b):
     return rows
 
 
-def pick_camera(table):
+def pick_camera(table, by="color"):
     """The camera whose image most plausibly made the verdict: the largest D_max if it is above the
-    cutoff bound, else the most pixels over tolerance."""
-    top = max(table, key=lambda r: r["d_max"])
-    if top["d_max"] > ISOLATED_MAX_D_MAX:
+    cutoff bound, else the most pixels over tolerance (of the alpha image with by="alpha")."""
+    dk, pk = ("alpha_d_max", "alpha_px_over") if by == "alpha" else ("d_max", "px_over")
+    top = max(table, key=lambda r: r[dk])
+    if top[dk] > ISOLATED_MAX_D_MAX:
         return top["camera"]
-    return max(table, key=lambda r: (r["px_over"], r["d_max"]))["camera"]
+    return max(table, key=lambda r: (r[pk], r[dk]))["camera"]
 
 
-def choose_camera(choice, cameras, render_a, render_b):
+def choose_camera(choice, cameras, render_a, render_b, by="color"):
     """Index of the camera to diagnose: `choice` is "worst" or a camera index."""
     if choice != "worst":
         return min(int(choice), len(cameras) - 1)
     if len(cameras) == 1:
         return 0
     table = camera_table(cameras, render_a, render_b)
-    c = pick_camera(table)
-    print("  per camera: " + ", ".join(f"{t['camera']}: D_max {t['d_max']:.1e} ({t['px_over']} px)" for t in table))
+    c = pick_camera(table, by)
+    print("  per camera: " + ", ".join(
+        f"{t['camera']}: D_max {t['d_max']:.1e} ({t['px_over']} px), alpha {t['alpha_d_max']:.1e} ({t['alpha_px_over']} px)"
+        for t in table))
     return c
+
+
+def bisect_finding(relation, scene, cameras, k, camera="worst", by="color"):
+    """Bisect one MR1 or MR4 finding at the camera that shows it.
+
+    Tries `by` on the rgb image first and falls back to the alpha image, where some findings are the
+    only difference (for MR4 also at the other inexact factor). Returns (camera, by, k, result or None).
+    """
+    attempts = [(by, k)]
+    if by != "alpha":
+        attempts += [("alpha", kk) for kk in dict.fromkeys([k, 0.01, 100.0] if relation == "mr4" else [k])]
+    c = 0
+    for by_, kk in attempts:
+        if relation == "mr1":
+            ra = lambda cm: render_mode(cm, False)(scene, False)  # noqa: E731
+            rb = lambda cm: render_mode(cm, True)(scene, False)  # noqa: E731
+        else:
+            ra = lambda cm: render(scene, cm, 1.0)  # noqa: E731
+            rb = lambda cm, kk=kk: render(scene, cm, kk)  # noqa: E731
+        c = choose_camera(camera, cameras, ra, rb, by_)
+        cam = cameras[c]
+        kw = dict(render_a=render_mode(cam, False), render_b=render_mode(cam, True), k_b=1.0) if relation == "mr1" else {}
+        r = bisect(scene, cam, kk, by=by_, **kw)
+        if r:
+            return c, by_, kk, r
+    return c, by, k, None
+
+
+def run_batch(relation, cases, a):
+    """Bisect every (scene_idx, k) of `cases`; one JSON line per scene to a.out (appended, so --resume
+    skips scenes already written). Prints the pattern counts of this invocation."""
+    out = Path(a.out) if a.out else None
+    done = set()
+    if out and a.resume and out.exists():
+        done = {json.loads(line)["scene_idx"] for line in out.read_text().splitlines() if line.strip()}
+        print(f"resuming: {len(done)} scenes already in {out}")
+    if out:
+        out.parent.mkdir(parents=True, exist_ok=True)
+    counts = {}
+    f = open(out, "a") if out else None
+    try:
+        for idx, k in cases:
+            if idx in done:
+                continue
+            if k is None:
+                k = 1.0 if relation == "mr1" else getattr(a, "bisect_k", 0.01)
+            mode, scene, cameras = load(a, idx)
+            print(f"\nscene {idx} [{mode}] n={scene.n} cameras={len(cameras)}")
+            c, by, kk, r = bisect_finding(relation, scene, cameras, k, a.camera, a.by)
+            pattern = r["pattern"] if r else "nothing over tolerance"
+            counts[pattern] = counts.get(pattern, 0) + 1
+            rec = {"relation": relation, "where": a.where, "scene_idx": idx, "mode": mode, "n_gaussians": scene.n,
+                   "n_cameras": len(cameras), "camera": c, "by": by, "k": kk, "pattern": pattern}
+            if r:
+                rec.update({key: r[key] for key in ("class", "n_keep", "rel_t", "min_t", "min_gap", "near_cutoff", "diff")})
+                rec.update(kappa=r["kappa"][:6], pixel=list(r["pixel"]))
+            if f:
+                f.write(json.dumps(rec) + "\n")
+                f.flush()
+    finally:
+        if f:
+            f.close()
+    print(f"\nSUMMARY of {sum(counts.values())} scenes (where {a.where}): {counts}")
+
+
+def summarize(paths):
+    """Pattern counts per relation and selection over JSONL files written by --out."""
+    table = {}
+    for p in paths:
+        for line in Path(p).read_text().splitlines():
+            if line.strip():
+                r = json.loads(line)
+                key = (r["relation"], r["where"])
+                table.setdefault(key, {})
+                table[key][r["pattern"]] = table[key].get(r["pattern"], 0) + 1
+    for (rel, where), c in sorted(table.items()):
+        print(f"{rel} {where}: {sum(c.values())} scenes: {dict(sorted(c.items(), key=lambda kv: -kv[1]))}")
+
+
+def add_batch_args(p):
+    p.add_argument("--out", default=None, help="with --scenes-from, write one JSON line per scene here")
+    p.add_argument("--resume", action="store_true", help="with --out, skip scenes already in the file")
+    p.add_argument("--summarize", nargs="+", default=None, metavar="JSONL", help="print pattern counts of --out files and exit")
 
 
 def add_camera_arg(p):
@@ -418,8 +596,6 @@ def cases_from_csv(path, where, rgb_below=None):
 
     With rgb_below, only rows whose mr4_rgb_d_max is at most that (differences visible only in the alpha image).
     """
-    import csv
-
     col, val = where.split("=", 1)
     with open(path) as f:
         return [
@@ -462,31 +638,15 @@ def main() -> int:
         default="color",
         help="pixel to bisect: worst color difference, or largest relative change in final transmittance",
     )
+    add_batch_args(p)
     a = p.parse_args()
 
+    if a.summarize:
+        summarize(a.summarize)
+        return 0
     if a.scenes_from:
         a.large = True
-        results = []
-        for idx, k in cases_from_csv(a.scenes_from, a.where, a.rgb_below)[a.offset :: a.every]:
-            mode, scene, cameras = load(a, idx)
-            # an alpha-only difference may sit at a different factor than the rgb worst case: try both inexact ones
-            ks = [0.01, 100.0] if a.by == "alpha" else [k or a.bisect_k]
-            c = choose_camera(a.camera, cameras, lambda cm: render(scene, cm, 1.0), lambda cm: render(scene, cm, ks[0]))
-            cam = cameras[c]
-            print(f"scene {idx} [{mode}] n={scene.n} res={cam.width}x{cam.height} cameras={len(cameras)} camera={c}")
-            r = None
-            for kk in ks:
-                r = bisect(scene, cam, kk, by=a.by)
-                if r:
-                    break
-            results.append((idx, r))
-        print(f"\nSUMMARY of {len(results)} scenes (where {a.where}):")
-        counts = {}
-        for idx, r in results:
-            c = r["class"] if r else "nothing over tolerance"
-            counts[c] = counts.get(c, 0) + 1
-            print(f"  scene {idx}: {c}" + (f" (kept {r['n_keep']}, rel T change {r['rel_t']:.1e})" if r else ""))
-        print(f"  counts: {counts}")
+        run_batch("mr4", cases_from_csv(a.scenes_from, a.where, a.rgb_below)[a.offset :: a.every], a)
         return 0
 
     if a.scene_idx is None:

@@ -10,7 +10,9 @@ Causes (checked in this order):
   single_gaussian           MR5: one Gaussian, so a shuffle is the identity
   visible_all_fixed_points  MR5: every visible Gaussian stays at its index under the shuffle, so
                             its color is unchanged; re-running with other shuffles shows whether
-                            another shuffle would have caught the fault (`alt_detect_rate`)
+                            another shuffle would have caught the fault (`alt_detect_rate`). Cannot
+                            occur since MR5 uses a derangement; it explains the earlier runs, which
+                            used a random shuffle
   visible_colors_unchanged  MR5: visible Gaussians move, but swapped colors are identical
   visible_isotropic         MR3: every visible Gaussian has equal scales, so rotation is irrelevant
   *_contribute_nothing      the Gaussians the fault touches are visible to gsplat's culling but
@@ -44,7 +46,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # repository root,
 from gsplat_mt.metrics import TOLERANCES, verdict
 from gsplat_mt.relations.mr3_covariance import run_mr3
 from gsplat_mt.relations.mr4_world_scale import run_mr4
-from gsplat_mt.relations.mr5_permutation import has_depth_tie, run_mr5
+from gsplat_mt.relations.mr5_permutation import derangement, has_depth_tie, run_mr5
 from gsplat_mt.sampling import MAX_CAMERAS, N_MAX, N_MIN, WORLD_SCALES, add_run_args, replay_scene
 from gsplat_mt.scene import stack_cameras
 
@@ -111,7 +113,7 @@ def classify_mr5(scene, cameras, seed: int, n_alt: int) -> Dict[str, object]:
     info: Dict[str, object] = {}
     if n == 1:
         return {"cause": "single_gaussian"}
-    perm = torch.randperm(n, generator=torch.Generator(device="cpu").manual_seed(seed)).to(dev)
+    perm = derangement(n, seed).to(dev)  # the shuffle run_mr5 uses
     inv = torch.empty_like(perm)
     inv[perm] = torch.arange(n, device=dev)
     vis = visible_mask(scene, cameras)

@@ -258,4 +258,4 @@ So the explanation has two parts: **rounding creates a tiny difference, and one 
 
 ## Details
 
-The progress notes in `docs/progress/` (weeks 7 to 13) hold the full measurements, the commands used and the open caveats of each stage. Weeks 7 to 12 are the camera-0 runs; week 13 is the all-camera run and its follow-up experiments.
+The progress notes in `docs/progress/` (weeks 7 to 14) hold the full measurements, the commands used and the open caveats of each stage. Weeks 7 to 12 are the camera-0 runs; week 13 is the all-camera run and its follow-up experiments; week 14 closes the items left open in week 13.

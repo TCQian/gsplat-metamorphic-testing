@@ -5,6 +5,11 @@ image. Scenes with (near-)equal depths are flagged via `depth_tie`, since the
 compositing order of tied Gaussians is ambiguous and a difference there is not
 necessarily a defect.
 
+The permutation is a derangement (no Gaussian keeps its index), drawn from the
+scene's seed. A random shuffle can leave every visible Gaussian in place, and
+then the planted fault below cannot change any pixel; a derangement moves every
+Gaussian. With one Gaussian no shuffle can move anything.
+
 Modes:
 - "correct": the same permutation is applied to all attributes.
 - "misaligned": fault injection; colors are left unpermuted, so attributes no
@@ -29,6 +34,19 @@ class MR5Result:
     alpha: Optional[ImageDiff]
     depth_tie: bool
     error: Optional[str] = None
+
+
+def random_shuffle(n: int, seed: int) -> Tensor:
+    """A uniformly random permutation of range(n) (may leave Gaussians in place)."""
+    return torch.randperm(n, generator=torch.Generator(device="cpu").manual_seed(seed))
+
+
+def derangement(n: int, seed: int) -> Tensor:
+    """A permutation of range(n) with no fixed point for n >= 2: one n-cycle through a random order."""
+    q = random_shuffle(n, seed)
+    perm = torch.empty(n, dtype=torch.long)
+    perm[q] = q.roll(-1)  # perm[q[j]] = q[j + 1]
+    return perm
 
 
 def has_depth_tie(
@@ -60,11 +78,10 @@ def run_mr5(
     if mode not in ("correct", "misaligned"):
         raise ValueError(f"unknown mode: {mode}")
 
-    # `perm` overrides the seeded random shuffle (used to try a shuffle with no fixed points).
+    # `perm` overrides the seeded derangement (e.g. `random_shuffle` to compare with earlier runs).
     if perm is None:
-        perm = torch.randperm(
-            scene.n, generator=torch.Generator(device="cpu").manual_seed(seed)
-        ).to(scene.means.device)
+        perm = derangement(scene.n, seed)
+    perm = perm.to(scene.means.device)
     colors_p = scene.colors if mode == "misaligned" else scene.colors[perm]
 
     tie = has_depth_tie(scene, cameras, near_plane, far_plane, tie_eps)

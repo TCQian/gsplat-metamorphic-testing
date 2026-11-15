@@ -104,7 +104,7 @@ diagnosis/                replay scenes from a results CSV and explain findings
                           root-cause tools for the earlier camera-0 runs (seed 1000)
 docs/
   concluding_report.md    results, root causes, usefulness
-  progress/week07-13.md   weekly progress notes
+  progress/week07-14.md   weekly progress notes
 soc-cluster.sh            SLURM: preliminary and large-scale study
 soc-cluster-diagnose.sh   SLURM: diagnosis steps
 ```
