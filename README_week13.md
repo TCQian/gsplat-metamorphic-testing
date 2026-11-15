@@ -41,7 +41,7 @@ Replays each scene of a `run_large_scale.py` CSV whose planted-fault verdict is 
 
 The MR4 fault has no classifier of its own: any undetected case is `unexplained` with its coverage recorded. In the 100,000-scene run MR3 and MR4 faults were detected in every non-empty scene, so only MR5 has data to study.
 
-Hypothesis, not yet tested: the 77 non-single scenes where the shuffle fault was missed (75 with exactly one Gaussian visible from camera 0) are `visible_all_fixed_points`, i.e. the random shuffle left the one visible Gaussian in place. Nothing in the results records the shuffle, so this needed the replay.
+Hypothesis (tested in the follow-up experiments at the end): the 77 non-single scenes where the shuffle fault was missed (75 with exactly one Gaussian visible from camera 0) are `visible_all_fixed_points`, i.e. the random shuffle left the one visible Gaussian in place. Nothing in the results records the shuffle, so this needed the replay.
 
 Options: `--faults`, `--skip-modes` (single-Gaussian scenes are trivially undetectable for MR5), `--alt-seeds`, `--limit`, and the sampling arguments of the run being replayed (`--seed`, `--modes`, `--n-min`, `--n-max`, `--max-cameras`, `--world-scales`). If the sampled mode of a scene does not match the CSV's, the scene is skipped with a message, which catches mismatched arguments.
 
@@ -124,7 +124,7 @@ Median coverage (share of pixels with alpha > 0, mean over cameras), per scene t
 ### Consequences for the earlier claims (20,000-scene run)
 
 - The concluding report's statements that MR1, MR3, MR4 and MR5 use camera 0 only, and its coverage and planted-fault numbers, describe the earlier run, not the current code.
-- A shuffle fault that leaves the visible Gaussians in place could be avoided by drawing the shuffle without fixed points (a derangement), or by trying a second shuffle; not done.
+- A shuffle fault that leaves the visible Gaussians in place could be avoided by drawing the shuffle without fixed points (a derangement), or by trying a second shuffle; tested on the 33 missed scenes in the follow-up experiments at the end.
 
 ## Results: 100,000 scenes, all cameras (job 1102754)
 
@@ -192,3 +192,48 @@ Median coverage by scene type: `scale_huge` 0.74, `dense_cover` 0.45, `far_clipp
 - The 30 fixed-point scenes: every visible Gaussian stayed at its index under the shuffle. Re-running with 16 other shuffles detects the fault in 92% of tries on average, so these are a property of the shuffle, as in the earlier studies. The 33 include the 5 undetected scenes of the 20,000-scene run, since its scenes are the first 20,000 here.
 - The 3 `contribute_nothing` scenes: the swapped Gaussians survive culling but never reach a pixel. Not further examined.
 - MR3 and MR4 planted faults were never undetected.
+
+## Results: follow-up experiments on the open items (job 1141870)
+
+`gsplat_mt/experiments_open_items.py` replays chosen scenes of `results/allcam_100000.csv` (submitted by `soc-cluster-open-items.sh`; results in `results/open_*.json` and `slurm-1141870.out`). It has four subcommands, `derangement`, `nothing`, `coverage` and `violations`. The job finished without errors.
+
+### `derangement`: the missed shuffle faults
+
+A derangement is a shuffle that moves every Gaussian (no Gaussian keeps its index). The planted MR5 fault was re-run on the 33 scenes where it was missed, with a derangement instead of the random shuffle.
+
+- All 33 are detected (30 `visible_all_fixed_points`, 3 `affected_gaussians_contribute_nothing`).
+- The correct shuffle relation still passes under the derangement in all 33, so there is no false alarm.
+- Tested on these 33 scenes only; the full 100,000-scene run was not repeated with a derangement.
+
+### `nothing`: the 3 `contribute_nothing` scenes
+
+In each, the one affected Gaussian that survives culling (the renderer's early step that discards Gaussians that cannot appear in a camera) never reaches a pixel even when rendered alone, with opacities 0.61, 0.15 and 0.61, well above the 1/255 cutoff. So the cause is its footprint, not occlusion or low opacity: it lies off the pixel grid or off screen. The experiment cannot tell those two apart. Every Gaussian that does reach a pixel stayed in place, so these are fixed-point cases too.
+
+### `coverage`: why `dense_cover` covers about 45%
+
+60 `dense_cover` scenes were replayed. The replayed coverage matches the CSV exactly, and 100% of the Gaussians survive culling in at least one camera, so culling does not limit coverage. Scaling every Gaussian by 1, 2 and 3 gives median coverage 0.43, 0.59 and 0.74.
+
+- Small scenes (300 Gaussians) respond strongly to the scaling (up to 70 to 94% at three times the size), so footprint size limits them.
+- Large scenes (over 2,000 Gaussians) hardly respond (for example 0.35 to 0.46, 0.28 to 0.34), so for them the region covered by all the Gaussians together is what limits coverage.
+- The median ratio of measured screen radius to the radius assumed by the simulation is 1.38. This is a rough check only. Why the simulation overestimated coverage is still not found.
+
+### `violations`: the nine violations bisected at the worst camera
+
+Each scene was bisected at the camera that shows the largest problem, not camera 0 (the earlier diagnosis tools use camera 0 only). The condition number kappa measures how strongly rounding errors are amplified for the kept Gaussian's conic (about the square of its length-to-width ratio; a round Gaussian has about 1).
+
+| Relation | Scene | Worst camera, pixels over tolerance | Kept Gaussians | kappa | Cause |
+| --- | --- | --- | --- | --- | --- |
+| MR1 | 42081 | 3, 65 px (D_max 3.3e-4) | 1 | 2.7e4 | smooth difference |
+| MR4 | 4896 | 0, 209 px | 1 | 2.0e4 | cutoff flip |
+| MR4 | 34408 | 3, 45 px | 1 | 2.0e4 | smooth difference |
+| MR4 | 38581 | 1 px | 5 | about 1 to 6 | early stop |
+| MR4 | 42367 | 4, 136 px | 1 | 1.3e4 | cutoff flip |
+| MR4 | 69294 | 1, 37 px | 1 | 1.9e4 | smooth difference |
+| MR4 | 77409 | 1 px | 11 | about 1 to 4 | early stop |
+| MR4 | 79993 | 4, 806 px | 1 | 2.6e4 | smooth difference |
+| MR4 | 94509 | 1 px | 14 | about 1 to 4 | early stop |
+
+- Four smooth differences, two cutoff flips, three early stops, all patterns seen before. The six one-Gaussian cases are needles (kappa 1.3e4 to 2.7e4); the three early stops are round, nearly opaque Gaussians.
+- Removing the kept Gaussians leaves 0 pixels over tolerance in eight scenes. In scene 79993, 1 pixel (1.5e-4) remains, cause not found.
+- Not bisected: in some scenes other cameras show 1 to 2 over-tolerance pixels. The other pixels of a group (for example the 209) were not checked one by one to flip for the same reason as the worst pixel.
+- A rule that uses kappa or the number of Gaussians involved to label `isolated_discontinuity` versus `violation` was not tried.
