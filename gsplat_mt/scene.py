@@ -150,9 +150,10 @@ def sample_gaussians(
     )
 
 
-# The original eight modes. Runners default to these so existing seeds reproduce:
-# adding a mode to the default list would change every scene's sampled mode.
-DEFAULT_MODES = (
+# The original eight modes, used by the earlier camera-0 runs (seed 1000). The large-scale
+# sampler draws a scene's mode from the list it is given, so replaying one of those runs needs
+# exactly these eight; SCENE_MODES (all nine) is the default everywhere else.
+ORIGINAL_MODES = (
     "default",
     "opacity_extreme",
     "scale_tiny",
@@ -162,7 +163,7 @@ DEFAULT_MODES = (
     "far_clipped",
     "single",
 )
-SCENE_MODES = DEFAULT_MODES + ("dense_cover",)
+SCENE_MODES = ORIGINAL_MODES + ("dense_cover",)
 
 # dense_cover: fill the frame with several semi-transparent layers of Gaussians, so few
 # pixels are plain background and many Gaussians contribute to each pixel.

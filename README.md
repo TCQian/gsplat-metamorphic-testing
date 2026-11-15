@@ -1,88 +1,112 @@
 # gsplat Metamorphic Testing
 
-Metamorphic testing framework for `gsplat`'s forward RGB rasterizer: a
-synthetic Gaussian scene generator (default plus edge-case modes) and five
-metamorphic relations (packed/unpacked, batched/individual cameras, covariance
-vs scale+quaternion, uniform world scale, Gaussian permutation), each judged
-pass/violation/crash against a tolerance. Requires an NVIDIA GPU as gsplat's rasterizer is a
-CUDA-only extension.
+Metamorphic testing of the forward RGB rasterizer of [`gsplat`](https://github.com/nerfstudio-project/gsplat) (pinned `gsplat==1.5.3`). Random scenes of 3D Gaussians are rendered two ways that must give the same image, and the two images are compared. No reference images are needed. Five metamorphic relations are tested:
+
+| Relation | The two renders | Expected |
+| --- | --- | --- |
+| MR1 | `packed=True` vs `packed=False` | equal within 1e-4 |
+| MR2 | all cameras in one call vs one call per camera | identical |
+| MR3 | precomputed covariance vs scale + quaternion | identical |
+| MR4 | means, scales, camera translation and near/far all scaled by k | equal within 1e-4; identical for power-of-two k |
+| MR5 | Gaussians shuffled | identical, unless two depths are tied |
+
+Every relation renders every camera of a scene in one batched call. MR3, MR4 and MR5 also run a planted fault (a deliberate mistake in the test itself: an xyzw quaternion, an unscaled camera translation, colors not shuffled with the Gaussians), which must be detected.
+
+## Results
+
+100,000 random scenes (nine scene types, 1-8 cameras, up to 5,000 Gaussians, up to 256x256), 102 minutes on one H100:
+
+- No crashes and no wrong images. MR2, MR3 and MR4 with power-of-two k are bit-exact in all 99,628 non-empty scenes.
+- MR5 changes the image only in scenes with near-equal depths (2,583 of 29,955 such scenes, 0 of 69,673 others).
+- MR1 and MR4 show small differences in about 2% and 14% of scenes, almost always a few pixels of one camera's image. Every one examined is float32 rounding (largest for needle-shaped Gaussians) turned visible by one of gsplat's hard thresholds: the 1/255 alpha cutoff, the 1e-4 transmittance early stop, or depth order.
+- The planted faults are detected in every non-empty scene, except the shuffle fault where the random shuffle leaves every visible Gaussian in place; a shuffle with no fixed points detects those too.
+
+The full analysis, with its caveats, is in [`docs/concluding_report.md`](docs/concluding_report.md).
 
 ## Setup
+
+gsplat's rasterizer is a CUDA-only extension, so an NVIDIA GPU is required (no CPU or MPS backend).
 
 ```bash
 conda create -n gsplat python=3.12
 conda activate gsplat
-pip install -r requirements.txt # make sure you are within a GPU enabled environment (alloc -G a100-40)
+pip install -r requirements.txt
 ```
+
+The first gsplat call JIT-compiles the CUDA extension (about 12 minutes, once per environment).
 
 ## Run
 
-```bash
-python gsplat_mt/run_preliminary.py --n-scenes 20 --out results/refined_results.csv
-```
-
-Useful flags (`--help` for the full list):
-
-- `--n-scenes`: scenes per mode
-- `--modes`: subset of `default opacity_extreme scale_tiny scale_huge anisotropic wide_spread far_clipped single dense_cover`. The default is the first eight; `dense_cover` is opt-in so existing seeds reproduce. It raises N to at least 300 and sets the radius, Gaussian size and opacities from the camera distance, field of view and aspect ratio so Gaussians fill the frame about 4 layers deep (measured median pixel coverage is 44%, against 11% for the other modes; a standalone estimate had predicted 85-98%)
-- `--world-scales`: MR4 scale factors k (default `0.01 0.0078125 0.25 4 100 128`; powers of two are also checked for exact equality)
-- `--n-gaussians-min/max`, `--width/--height`, `--n-cameras`
-- `--mr1-backgrounds`: also run MR1 with a background color set, to probe gsplat issue [#764](https://github.com/nerfstudio-project/gsplat/issues/764)
-- `--skip-repro`: skip the standalone issue #764 / [#630](https://github.com/nerfstudio-project/gsplat/issues/630) reproduction checks
-
-Outputs (next to `--out`): `*_results.csv` (per-scene MR results), `*_repro.json`
-(issue reproduction outcomes), `*_summary.json` (aggregate D_max/D_MAE stats and per-mode verdict counts).
-
-Tolerances (max abs pixel difference) are set in `gsplat_mt/metrics.py`: 1e-4 for MR1 and MR4, exact equality for MR2, MR3 and MR5. MR4/MR5 values are initial. MR5 differences, and MR4 violations, in scenes with near-equal depths are reported as `tie_ambiguous`, not `violation`. For MR1 and MR4, a violation confined to at most 0.05% of pixels (2 pixels at 64x64) is reported as `isolated_discontinuity`: a single pixel crossing a rasterizer cutoff such as alpha < 1/255; it must also have D_max at most 4e-3, the most one such cutoff flip can change a pixel. The raw D_max and the per-image pixel count (`*_n_px_over`) are still recorded.
-
-Every comparison also records `*_d_ssim`, a windowed structural-similarity score (1.0 = identical) that, unlike D_max/D_MAE, is locally averaged rather than per-pixel: it is diagnostic only and does not currently affect any verdict (see `gsplat_mt/metrics.py:ssim` and README_week12.md).
-
-Every relation renders every camera of the scene in one batched call (before this, MR1, MR3, MR4 and MR5 rendered camera 0 only; rows record `relations_cameras=all`). The isolated-pixel rule is applied per camera image, and `mr5_depth_tie` is true if any camera has near-equal depths. A `pass` is `vacuous_pass` only if every camera is empty.
-
-Each scene also records visibility: `coverage_cam0`/`coverage_mean` (fraction of pixels with alpha > 0), `opaque_frac_cam0`/`opaque_frac_mean` (alpha > 0.99), `n_empty_cams`, and `n_visible_cam0`/`n_visible_any` (Gaussians surviving gsplat's culling), plus `coverage_min` (least-covered camera) and `n_covered_px` (covered pixels over all cameras). A `pass` on a render that draws nothing (camera 0 empty; for MR2, every camera empty) is reported as `vacuous_pass`.
-
-MR4 also records `mr4_exact_verdict`: over the power-of-two factors, where scaling is exact in binary, the two renders must be identical (tolerance 0, never relabeled). Each of MR3, MR4 and MR5 also runs a fault-injected variant (`mr3_xyzwbug`, `mr4_bug`, `mr5_bug`), where `violation` means the injected bug was detected.
-
-## Large-scale run
+On a SLURM cluster (the scripts request an H100 on the NUS SoC cluster; change `--gres` for another cluster), from the repository root:
 
 ```bash
-python gsplat_mt/run_large_scale.py --n-scenes 2000 --out results/large_scale.csv
-python gsplat_mt/run_large_scale.py --only-scene 137 --out results/one.csv   # replay one scene
+sbatch soc-cluster.sh                       # preliminary + large-scale study
+sbatch soc-cluster.sh preliminary           # 20 small scenes per scene type, a few minutes
+sbatch soc-cluster.sh large                 # 100,000 randomized scenes, about 100 minutes
+sbatch soc-cluster-diagnose.sh violations   # then diagnose the findings; steps are listed in the script
 ```
 
-Each scene samples its own configuration (Gaussian count 10-5000, scene radius, scale and opacity ranges, camera distance, field of view, 1-8 cameras, resolution) and a stress mode, then runs MR1-MR5 as above. Config values are recorded as `cfg_*` columns; a mode's own overrides win over the sampled values they touch. Outputs next to `--out`: `*.csv`, `*.jsonl` (written per scene, so a timeout keeps partial results), `*_findings.csv` (scenes with any crash/violation/isolated_discontinuity/tie_ambiguous/invalid_output), `*_summary.json` (verdict counts per mode, fault-injection detection, Spearman correlations of scene properties with MR1/MR4 D_max). The run stops early on a CUDA error other than out-of-memory, since later scenes would be invalid.
-
-## SLURM (SoC cluster)
+On any CUDA machine, from the repository root:
 
 ```bash
-sbatch soc-cluster.sh        # all scene modes, default settings
-sbatch soc-cluster-large.sh  # large-scale randomized study
-sbatch soc-cluster-diagnose.sh  # MR4 bisection of the worst pixel in five scenes
-sbatch soc-cluster-diagnose-further.sh # study rerun + tie probe + bisection of every remaining MR1/MR4 finding
-sbatch soc-cluster-diagnose-open.sh # targeted diagnoses of the open cases, plus packed vs unpacked projection outputs for MR1 cutoff flips
-sbatch soc-cluster-isolate-stage.sh # which stage of the projection first differs between the packed and unpacked kernels
-sbatch soc-cluster-root-cause.sh # conic differences against covariance conditioning, and gsplat's rasterizer arithmetic compiled and compared
-sbatch soc-cluster-diagnose-xl.sh # bisect samples of the 100,000-scene findings
-sbatch soc-cluster-xl.sh     # same runner, 100,000 scenes (the first 2000 equal the large-scale run)
-sbatch soc-cluster-allcam.sh # all-camera relations, dense_cover, then the undetected-fault study
+python runners/run_preliminary.py --n-scenes 2 --modes default single --skip-repro --out results/smoke.csv   # quick check
+python runners/run_preliminary.py --n-scenes 20 --out results/preliminary.csv
+python runners/run_large_scale.py --n-scenes 100000 --out results/allcam_100000.csv
+python runners/run_large_scale.py --only-scene 4896 --out results/one.csv   # replay one scene
 ```
 
-Each requests a single GPU, activates the `gsplat` conda env, and installs dependencies.
+`--help` lists every option. The large-scale defaults (seed 2000, all nine scene types) reproduce the run above. Scene types: `default opacity_extreme scale_tiny scale_huge anisotropic wide_spread far_clipped single dense_cover`. `--world-scales` sets the MR4 factors (default `0.01 0.0078125 0.25 4 100 128`).
+
+## Outputs
+
+`results/` (not tracked) receives, next to `--out`:
+
+- `<out>.csv`: one row per scene: scene type and properties, the sampled configuration (`cfg_*`, large-scale only), and per relation D_max, D_MAE, D_SSIM, pixels over tolerance and a verdict.
+- `<out>_findings.csv` (large-scale): scenes with any `crash`, `violation`, `isolated_discontinuity`, `tie_ambiguous` or `invalid_output`.
+- `<out>_summary.json`: verdict counts per scene type, planted-fault detection, timing and Spearman correlations of scene properties with MR1/MR4 D_max.
+- `<out>.jsonl` (large-scale): written scene by scene, so a timeout keeps partial results.
+- `<out>_repro.json` (preliminary): standalone reproductions of gsplat issues [#764](https://github.com/nerfstudio-project/gsplat/issues/764) (`packed=True` with `backgrounds`) and [#630](https://github.com/nerfstudio-project/gsplat/issues/630) (xyzw quaternion mislabel, a caller-side bug).
+
+Verdicts (`gsplat_mt/metrics.py`):
+
+| Verdict | Meaning |
+| --- | --- |
+| `pass` | within tolerance (1e-4 for MR1 and MR4, exactly 0 otherwise) |
+| `isolated_discontinuity` | MR1/MR4 only: at most 0.05% of the pixels of every camera image over tolerance, and D_max at most 4e-3 (the most one Gaussian crossing the 1/255 alpha cutoff can change a pixel) |
+| `tie_ambiguous` | a `violation` of MR4 or MR5 in a scene where some camera sees two Gaussians with depths closer than 1e-6 |
+| `violation` | anything else over tolerance; for a planted fault it means the fault was detected |
+| `vacuous_pass` | a pass where every camera's image is empty |
+| `crash` / `invalid_output` | gsplat raised an error / both renders agree but contain NaN or Inf |
+
+`mr4_exact_verdict` checks the power-of-two factors with tolerance 0 and is never relabeled. Per-scene coverage columns (`coverage_mean`, `coverage_min`, `n_covered_px`, `opaque_frac_mean`, `n_visible_any`) show how many pixels a pass rests on.
 
 ## Layout
 
-- `gsplat_mt/scene.py` -- scene/camera generator and stress modes
-- `gsplat_mt/metrics.py` -- D_max/D_MAE oracle, tolerances, verdicts
-- `gsplat_mt/mr1_packed.py`, `mr2_batch.py`, `mr3_covariance.py`, `mr4_world_scale.py`, `mr5_permutation.py` -- the five MRs
-- `gsplat_mt/repro_issues.py` -- reproductions of gsplat issues #764 and #630
-- `gsplat_mt/run_preliminary.py` -- CLI runner
-- `gsplat_mt/run_large_scale.py` -- randomized-configuration runner (reuses `run_preliminary.run_one_scene`)
-- `gsplat_mt/diagnose_mr4.py` -- per-pixel MR4 diagnosis for one scene; `--bisect` finds the Gaussians behind one pixel
-- `gsplat_mt/diagnose_mr1.py` -- the same bisection for MR1 (packed vs unpacked)
-- `gsplat_mt/diagnose_open_items.py` -- five targeted diagnoses of the cases left open after the 100,000-scene run (smooth difference, a violation whose worst pixel is a cutoff flip, a 280-pixel cutoff flip, early stop, alpha-only MR1 differences)
-- `gsplat_mt/isolate_projection_stage.py` -- rebuilds gsplat's two projection kernels with one store each and compares them, to find the stage where packed and unpacked first differ
-- `gsplat_mt/diagnose_conic_precision.py` -- conic differences between paths, against a one-float-step perturbation and the covariance condition number
-- `gsplat_mt/replicate_kernel_arithmetic.py` -- compiles gsplat's alpha / early-stop arithmetic and checks it against the renders
-- `gsplat_mt/diagnose_mr1_inputs.py` -- compares packed and unpacked projection outputs bit for bit for the Gaussian behind an MR1 cutoff flip
-- `gsplat_mt/probe_ties.py` -- how gsplat orders Gaussians with equal depths
-- `gsplat_mt/study_undetected_faults.py` -- replays scenes where a planted fault (MR3 `xyzw_bug`, MR4 `no_translation`, MR5 `misaligned`) was not detected and tests the cause: single Gaussian, visible Gaussians unmoved by the shuffle (re-tried with other shuffles), isotropic Gaussians, or Gaussians that never reach a pixel; records `depth_tie` so ordering cases can be excluded
+```
+gsplat_mt/                library
+  scene.py                random Gaussian scenes, cameras and the nine scene types
+  metrics.py              image comparison (D_max, D_MAE, SSIM), tolerances, verdicts
+  relations/              MR1-MR5 (mr1_packed.py ... mr5_permutation.py), with planted faults
+  harness.py              one scene through every relation -> one result row
+  sampling.py             per-scene random configuration of the large-scale run; scene replay
+  repro_issues.py         reproductions of gsplat issues #764 and #630
+runners/
+  run_preliminary.py      fixed settings, a number of scenes per scene type
+  run_large_scale.py      every scene draws its own configuration
+diagnosis/                replay scenes from a results CSV and explain findings
+  diagnose_mr4.py         bisect (delta debugging) the Gaussians behind one MR4 pixel
+  diagnose_mr1.py         the same for MR1 (packed vs unpacked)
+  diagnose_allcam.py      violations at their worst camera; missed shuffle faults; dense_cover coverage
+  study_undetected_faults.py   why a planted fault was missed
+  probe_ties.py           how gsplat orders equal depths
+  diagnose_conic_precision.py, diagnose_mr1_inputs.py, diagnose_open_items.py,
+  replicate_kernel_arithmetic.py, isolate_projection_stage.py
+                          root-cause tools for the earlier camera-0 runs (seed 1000)
+docs/
+  concluding_report.md    results, root causes, usefulness
+  progress/week07-13.md   weekly progress notes
+soc-cluster.sh            SLURM: preliminary and large-scale study
+soc-cluster-diagnose.sh   SLURM: diagnosis steps
+```
+
+The diagnosis tools replay a scene from the run's seed and scene types (`--seed`, `--modes`), so they need the same settings as the run that produced the CSV. They default to the all-camera run, except the five root-cause tools of the camera-0 runs, which default to seed 1000 and the original eight scene types.

@@ -8,8 +8,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import torch
-from metrics import ImageDiff, compare_images
-from mr3_covariance import _covars_xyzw_bug
+from gsplat_mt.metrics import ImageDiff, compare_images
+from gsplat_mt.relations.mr3_covariance import _covars_xyzw_bug
 
 
 @dataclass
