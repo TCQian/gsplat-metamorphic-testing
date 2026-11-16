@@ -14,12 +14,12 @@ Every relation renders every camera of a scene in one batched call. MR3, MR4 and
 
 ## Results
 
-100,000 random scenes (nine scene types, 1-8 cameras, up to 5,000 Gaussians, up to 256x256), 102 minutes on one H100:
+100,000 random scenes (nine scene types, 1-8 cameras, up to 5,000 Gaussians, up to 256x256), 100 minutes on one H100:
 
 - No crashes and no wrong images. MR2, MR3 and MR4 with power-of-two k are bit-exact in all 99,628 non-empty scenes.
-- MR5 changes the image only in scenes with near-equal depths (2,583 of 29,955 such scenes, 0 of 69,673 others).
-- MR1 and MR4 show small differences in about 2% and 14% of scenes, almost always a few pixels of one camera's image. Every one examined is float32 rounding (largest for needle-shaped Gaussians) turned visible by one of gsplat's hard thresholds: the 1/255 alpha cutoff, the 1e-4 transmittance early stop, or depth order.
-- The planted faults are detected in every non-empty scene, except the shuffle fault where the random shuffle leaves every visible Gaussian in place; a shuffle with no fixed points detects those too.
+- MR5 changes the image only in scenes with near-equal depths (2,558 of 29,955 such scenes, 0 of 69,673 others).
+- MR1 and MR4 show small differences in about 2% and 14% of scenes, almost always a few pixels of one camera's image. Every one was bisected (delta debugging) to the Gaussians behind its worst pixel, and every one is float32 rounding, largest for needle-shaped Gaussians. Almost all are turned visible by one of gsplat's hard thresholds: the 1/255 alpha cutoff, the 1e-4 transmittance early stop, or depth order. In a few needles the rounding alone exceeds the 1e-4 tolerance.
+- The planted faults are detected in every non-empty scene (the shuffle fault in every scene with more than one Gaussian; it shuffles with a derangement, so no Gaussian keeps its index).
 
 The full analysis, with its caveats, is in [`docs/concluding_report.md`](docs/concluding_report.md).
 
