@@ -45,7 +45,7 @@ No log has an error.
 
 - Items 1 and 2: `soc-cluster-diagnose.sh violations` (job 1145970, 3.5 minutes; `results/open_pixels.json`).
 - Item 3: `PART=j/10 soc-cluster-diagnose.sh mr4 mr1` for j = 0..9 (jobs 1145971-1145980, 1.5 to 9 minutes each; `results/bisect/*.jsonl`), about 1,650 scenes per job.
-- Item 4: the 100,000 scenes again (seed 2000, nine types) into `results/allcam_100000_derangement.csv`, keeping the earlier CSV for comparison, then `study_undetected_faults.py` on it (job 1145981, 106 minutes).
+- Item 4: the 100,000 scenes again (seed 2000, nine types) into `results/allcam_100000.csv`, keeping the earlier run as `results/allcam_100000_random_shuffle.csv` for comparison, then `study_undetected_faults.py` on it (job 1145981, 106 minutes).
 
 ## Results
 
@@ -94,7 +94,7 @@ The camera-0 run (week 11) had 97.1%, 1.3%, 1.5% and 0.1% for MR4 `isolated_disc
 
 ### Item 4: the 100,000 scenes with a derangement
 
-- **MR1-MR4 are unchanged:** identical to `allcam_100000.csv` in all 100,000 rows (55 columns, 0 differences).
+- **MR1-MR4 are unchanged:** identical to the earlier run (`allcam_100000_random_shuffle.csv`) in all 100,000 rows (55 columns, 0 differences).
 - **Planted MR5 fault:** undetected in 11,044 scenes, all `single` (one Gaussian cannot be shuffled). Detected in every non-empty scene with more than one Gaussian, including the 33 the random shuffle missed (27 `far_clipped`, 5 `wide_spread`, 1 `opacity_extreme`). `study_undetected_faults.py` has nothing left to study (0 scenes for each fault).
 - **Correct MR5:** changes the image in 2,558 of the 29,955 tied scenes and in none of the 69,673 untied ones (2,583 with the random shuffle; a different shuffle reorders different tied pairs).
 - 15,873 scenes have a finding (15,908 with the random shuffle). The 100,000 scenes took 100 minutes (102 before).
