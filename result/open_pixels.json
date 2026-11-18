@@ -1,0 +1,944 @@
+{
+  "pixels": [
+    {
+      "relation": "mr1",
+      "scene_idx": 42081,
+      "mode": "anisotropic",
+      "n_gaussians": 1740,
+      "images": [
+        {
+          "n_over": 65,
+          "d_max": 0.00033149123191833496,
+          "rounds": [
+            {
+              "pixel": [
+                75,
+                52
+              ],
+              "by": "color",
+              "pattern": "smooth difference",
+              "class": "unclassified",
+              "n_keep": 1,
+              "keep": [
+                1487
+              ],
+              "kappa": [
+                27108.355545843635
+              ],
+              "diff": 0.0004681050777435303,
+              "min_t": 0.681762158870697,
+              "n_explained": 65
+            }
+          ],
+          "n_unexplained": 0,
+          "over_after_removing_kept": 0,
+          "over_only_after_removing_kept": 0,
+          "camera": 3,
+          "k": 1.0
+        },
+        {
+          "n_over": 1,
+          "d_max": 0.00013500452041625977,
+          "rounds": [
+            {
+              "pixel": [
+                20,
+                1
+              ],
+              "by": "color",
+              "pattern": "cutoff flip",
+              "class": "transmittance-changed",
+              "n_keep": 1,
+              "keep": [
+                1652
+              ],
+              "kappa": [
+                1671.91412127892
+              ],
+              "diff": 0.003600462106987834,
+              "min_t": 0.9960779547691345,
+              "n_explained": 1
+            }
+          ],
+          "n_unexplained": 0,
+          "over_after_removing_kept": 0,
+          "over_only_after_removing_kept": 0,
+          "camera": 4,
+          "k": 1.0
+        }
+      ]
+    },
+    {
+      "relation": "mr4",
+      "scene_idx": 4896,
+      "mode": "anisotropic",
+      "n_gaussians": 17,
+      "images": [
+        {
+          "n_over": 226,
+          "d_max": 0.001536548137664795,
+          "rounds": [
+            {
+              "pixel": [
+                52,
+                80
+              ],
+              "by": "color",
+              "pattern": "cutoff flip",
+              "class": "transmittance-changed",
+              "n_keep": 1,
+              "keep": [
+                8
+              ],
+              "kappa": [
+                20182.197456488022
+              ],
+              "diff": 0.0029370421543717384,
+              "min_t": 0.9960611462593079,
+              "n_explained": 226
+            }
+          ],
+          "n_unexplained": 0,
+          "over_after_removing_kept": 0,
+          "over_only_after_removing_kept": 0,
+          "camera": 0,
+          "k": 0.01
+        },
+        {
+          "n_over": 11,
+          "d_max": 0.0002066493034362793,
+          "rounds": [
+            {
+              "pixel": [
+                9,
+                33
+              ],
+              "by": "color",
+              "pattern": "smooth difference",
+              "class": "unclassified",
+              "n_keep": 1,
+              "keep": [
+                8
+              ],
+              "kappa": [
+                20182.197456488022
+              ],
+              "diff": 0.0002705603837966919,
+              "min_t": 0.750739336013794,
+              "n_explained": 11
+            }
+          ],
+          "n_unexplained": 0,
+          "over_after_removing_kept": 0,
+          "over_only_after_removing_kept": 0,
+          "camera": 0,
+          "k": 100.0
+        }
+      ]
+    },
+    {
+      "relation": "mr4",
+      "scene_idx": 34408,
+      "mode": "anisotropic",
+      "n_gaussians": 11,
+      "images": [
+        {
+          "n_over": 1,
+          "d_max": 0.0017683804035186768,
+          "rounds": [
+            {
+              "pixel": [
+                156,
+                91
+              ],
+              "by": "color",
+              "pattern": "cutoff flip",
+              "class": "transmittance-changed",
+              "n_keep": 1,
+              "keep": [
+                8
+              ],
+              "kappa": [
+                27.194566528229096
+              ],
+              "diff": 0.003530556568875909,
+              "min_t": 0.9960784316062927,
+              "n_explained": 1
+            }
+          ],
+          "n_unexplained": 0,
+          "over_after_removing_kept": 0,
+          "over_only_after_removing_kept": 0,
+          "camera": 0,
+          "k": 0.01
+        },
+        {
+          "n_over": 60,
+          "d_max": 0.00015693902969360352,
+          "rounds": [
+            {
+              "pixel": [
+                117,
+                255
+              ],
+              "by": "color",
+              "pattern": "smooth difference",
+              "class": "unclassified",
+              "n_keep": 1,
+              "keep": [
+                9
+              ],
+              "kappa": [
+                20338.956549542752
+              ],
+              "diff": 0.0001347959041595459,
+              "min_t": 0.6095836758613586,
+              "n_explained": 60
+            }
+          ],
+          "n_unexplained": 0,
+          "over_after_removing_kept": 0,
+          "over_only_after_removing_kept": 0,
+          "camera": 3,
+          "k": 0.01
+        },
+        {
+          "n_over": 5,
+          "d_max": 0.00012552738189697266,
+          "rounds": [
+            {
+              "pixel": [
+                246,
+                129
+              ],
+              "by": "color",
+              "pattern": "smooth difference",
+              "class": "unclassified",
+              "n_keep": 1,
+              "keep": [
+                10
+              ],
+              "kappa": [
+                7521.411300612706
+              ],
+              "diff": 0.00011231005191802979,
+              "min_t": 0.8201572895050049,
+              "n_explained": 5
+            }
+          ],
+          "n_unexplained": 0,
+          "over_after_removing_kept": 0,
+          "over_only_after_removing_kept": 0,
+          "camera": 1,
+          "k": 100.0
+        },
+        {
+          "n_over": 53,
+          "d_max": 0.0002091526985168457,
+          "rounds": [
+            {
+              "pixel": [
+                210,
+                47
+              ],
+              "by": "color",
+              "pattern": "smooth difference",
+              "class": "unclassified",
+              "n_keep": 1,
+              "keep": [
+                9
+              ],
+              "kappa": [
+                20338.956549542752
+              ],
+              "diff": 0.00019973516464233398,
+              "min_t": 0.9262796640396118,
+              "n_explained": 53
+            }
+          ],
+          "n_unexplained": 0,
+          "over_after_removing_kept": 0,
+          "over_only_after_removing_kept": 0,
+          "camera": 3,
+          "k": 100.0
+        }
+      ]
+    },
+    {
+      "relation": "mr4",
+      "scene_idx": 38581,
+      "mode": "opacity_extreme",
+      "n_gaussians": 108,
+      "images": [
+        {
+          "n_over": 1,
+          "d_max": 0.006000876426696777,
+          "rounds": [
+            {
+              "pixel": [
+                194,
+                101
+              ],
+              "by": "color",
+              "pattern": "early stop",
+              "class": "transmittance-changed",
+              "n_keep": 5,
+              "keep": [
+                9,
+                19,
+                33,
+                61,
+                83
+              ],
+              "kappa": [
+                1.122575935727251,
+                5.7952173514827585,
+                2.857237097345856,
+                2.277106088175462,
+                2.362051070092378
+              ],
+              "diff": 0.004657268524169922,
+              "min_t": 0.00010001659393310547,
+              "n_explained": 1
+            }
+          ],
+          "n_unexplained": 0,
+          "over_after_removing_kept": 0,
+          "over_only_after_removing_kept": 0,
+          "camera": 2,
+          "k": 0.01
+        }
+      ]
+    },
+    {
+      "relation": "mr4",
+      "scene_idx": 42367,
+      "mode": "anisotropic",
+      "n_gaussians": 26,
+      "images": [
+        {
+          "n_over": 1,
+          "d_max": 0.0019795894622802734,
+          "rounds": [
+            {
+              "pixel": [
+                50,
+                137
+              ],
+              "by": "color",
+              "pattern": "cutoff flip",
+              "class": "transmittance-changed",
+              "n_keep": 1,
+              "keep": [
+                18
+              ],
+              "kappa": [
+                4.0667485805393975
+              ],
+              "diff": 0.003125102026388049,
+              "min_t": 0.9960784316062927,
+              "n_explained": 1
+            }
+          ],
+          "n_unexplained": 0,
+          "over_after_removing_kept": 0,
+          "over_only_after_removing_kept": 0,
+          "camera": 2,
+          "k": 0.01
+        },
+        {
+          "n_over": 1,
+          "d_max": 0.0033785104751586914,
+          "rounds": [
+            {
+              "pixel": [
+                162,
+                6
+              ],
+              "by": "color",
+              "pattern": "cutoff flip",
+              "class": "transmittance-changed",
+              "n_keep": 1,
+              "keep": [
+                16
+              ],
+              "kappa": [
+                5423.387402267432
+              ],
+              "diff": 0.002879099687561393,
+              "min_t": 0.9960750937461853,
+              "n_explained": 1
+            }
+          ],
+          "n_unexplained": 0,
+          "over_after_removing_kept": 0,
+          "over_only_after_removing_kept": 0,
+          "camera": 3,
+          "k": 0.01
+        },
+        {
+          "n_over": 160,
+          "d_max": 0.003840804100036621,
+          "rounds": [
+            {
+              "pixel": [
+                32,
+                207
+              ],
+              "by": "color",
+              "pattern": "cutoff flip",
+              "class": "transmittance-changed",
+              "n_keep": 1,
+              "keep": [
+                7
+              ],
+              "kappa": [
+                13434.163134915001
+              ],
+              "diff": 0.0034205527044832706,
+              "min_t": 0.9960718750953674,
+              "n_explained": 160
+            }
+          ],
+          "n_unexplained": 0,
+          "over_after_removing_kept": 0,
+          "over_only_after_removing_kept": 0,
+          "camera": 4,
+          "k": 0.01
+        },
+        {
+          "n_over": 1,
+          "d_max": 0.003380298614501953,
+          "rounds": [
+            {
+              "pixel": [
+                162,
+                6
+              ],
+              "by": "color",
+              "pattern": "cutoff flip",
+              "class": "transmittance-changed",
+              "n_keep": 1,
+              "keep": [
+                16
+              ],
+              "kappa": [
+                5423.387402267432
+              ],
+              "diff": 0.0028806596528738737,
+              "min_t": 0.9960730075836182,
+              "n_explained": 1
+            }
+          ],
+          "n_unexplained": 0,
+          "over_after_removing_kept": 0,
+          "over_only_after_removing_kept": 0,
+          "camera": 3,
+          "k": 100.0
+        },
+        {
+          "n_over": 280,
+          "d_max": 0.00041961669921875,
+          "rounds": [
+            {
+              "pixel": [
+                210,
+                32
+              ],
+              "by": "color",
+              "pattern": "smooth difference",
+              "class": "unclassified",
+              "n_keep": 1,
+              "keep": [
+                7
+              ],
+              "kappa": [
+                13434.163134915001
+              ],
+              "diff": 0.00038740038871765137,
+              "min_t": 0.7247757911682129,
+              "n_explained": 280
+            }
+          ],
+          "n_unexplained": 0,
+          "over_after_removing_kept": 0,
+          "over_only_after_removing_kept": 0,
+          "camera": 4,
+          "k": 100.0
+        }
+      ]
+    },
+    {
+      "relation": "mr4",
+      "scene_idx": 69294,
+      "mode": "anisotropic",
+      "n_gaussians": 12,
+      "images": [
+        {
+          "n_over": 37,
+          "d_max": 0.00019571185111999512,
+          "rounds": [
+            {
+              "pixel": [
+                42,
+                29
+              ],
+              "by": "color",
+              "pattern": "smooth difference",
+              "class": "unclassified",
+              "n_keep": 1,
+              "keep": [
+                3
+              ],
+              "kappa": [
+                18713.0581128166
+              ],
+              "diff": 0.0003006458282470703,
+              "min_t": 0.3106535077095032,
+              "n_explained": 37
+            }
+          ],
+          "n_unexplained": 0,
+          "over_after_removing_kept": 0,
+          "over_only_after_removing_kept": 0,
+          "camera": 1,
+          "k": 0.01
+        },
+        {
+          "n_over": 38,
+          "d_max": 0.0001659095287322998,
+          "rounds": [
+            {
+              "pixel": [
+                58,
+                37
+              ],
+              "by": "color",
+              "pattern": "smooth difference",
+              "class": "unclassified",
+              "n_keep": 1,
+              "keep": [
+                3
+              ],
+              "kappa": [
+                18713.0581128166
+              ],
+              "diff": 0.00024119019508361816,
+              "min_t": 0.6095328330993652,
+              "n_explained": 38
+            }
+          ],
+          "n_unexplained": 0,
+          "over_after_removing_kept": 0,
+          "over_only_after_removing_kept": 0,
+          "camera": 1,
+          "k": 100.0
+        }
+      ]
+    },
+    {
+      "relation": "mr4",
+      "scene_idx": 77409,
+      "mode": "opacity_extreme",
+      "n_gaussians": 120,
+      "images": [
+        {
+          "n_over": 1,
+          "d_max": 0.0038817524909973145,
+          "rounds": [
+            {
+              "pixel": [
+                207,
+                172
+              ],
+              "by": "color",
+              "pattern": "cutoff flip",
+              "class": "transmittance-changed",
+              "n_keep": 1,
+              "keep": [
+                40
+              ],
+              "kappa": [
+                2.452952104726735
+              ],
+              "diff": 0.0016169608570635319,
+              "min_t": 0.9960784316062927,
+              "n_explained": 1
+            }
+          ],
+          "n_unexplained": 0,
+          "over_after_removing_kept": 0,
+          "over_only_after_removing_kept": 0,
+          "camera": 2,
+          "k": 0.01
+        },
+        {
+          "n_over": 1,
+          "d_max": 0.036933958530426025,
+          "rounds": [
+            {
+              "pixel": [
+                105,
+                136
+              ],
+              "by": "color",
+              "pattern": "early stop",
+              "class": "transmittance-changed",
+              "n_keep": 11,
+              "keep": [
+                21,
+                27,
+                50,
+                52,
+                64,
+                78,
+                91,
+                94,
+                95,
+                100,
+                111
+              ],
+              "kappa": [
+                1.084988294225567,
+                1.439317515386627,
+                2.342705520347577,
+                3.654914820638517,
+                2.3292029574524515,
+                1.675926355528519
+              ],
+              "diff": 0.01523125171661377,
+              "min_t": 0.00010001659393310547,
+              "n_explained": 1
+            }
+          ],
+          "n_unexplained": 0,
+          "over_after_removing_kept": 0,
+          "over_only_after_removing_kept": 0,
+          "camera": 2,
+          "k": 100.0
+        },
+        {
+          "n_over": 1,
+          "d_max": 0.0004800558090209961,
+          "rounds": [
+            {
+              "pixel": [
+                179,
+                127
+              ],
+              "by": "color",
+              "pattern": "cutoff flip",
+              "class": "transmittance-changed",
+              "n_keep": 1,
+              "keep": [
+                92
+              ],
+              "kappa": [
+                1.7979681574385802
+              ],
+              "diff": 0.0017649551155045629,
+              "min_t": 0.9960784316062927,
+              "n_explained": 1
+            }
+          ],
+          "n_unexplained": 0,
+          "over_after_removing_kept": 0,
+          "over_only_after_removing_kept": 0,
+          "camera": 5,
+          "k": 100.0
+        }
+      ]
+    },
+    {
+      "relation": "mr4",
+      "scene_idx": 79993,
+      "mode": "anisotropic",
+      "n_gaussians": 135,
+      "images": [
+        {
+          "n_over": 1,
+          "d_max": 0.0027205348014831543,
+          "rounds": [
+            {
+              "pixel": [
+                164,
+                35
+              ],
+              "by": "color",
+              "pattern": "cutoff flip",
+              "class": "transmittance-changed",
+              "n_keep": 1,
+              "keep": [
+                52
+              ],
+              "kappa": [
+                242.3901442460005
+              ],
+              "diff": 0.0035428947303444147,
+              "min_t": 0.9960783123970032,
+              "n_explained": 1
+            }
+          ],
+          "n_unexplained": 0,
+          "over_after_removing_kept": 0,
+          "over_only_after_removing_kept": 0,
+          "camera": 0,
+          "k": 0.01
+        },
+        {
+          "n_over": 1,
+          "d_max": 0.00012886524200439453,
+          "rounds": [
+            {
+              "pixel": [
+                9,
+                14
+              ],
+              "by": "color",
+              "pattern": "cutoff flip",
+              "class": "transmittance-changed",
+              "n_keep": 1,
+              "keep": [
+                107
+              ],
+              "kappa": [
+                1246.3020789848895
+              ],
+              "diff": 0.0027111461386084557,
+              "min_t": 0.9960776567459106,
+              "n_explained": 1
+            }
+          ],
+          "n_unexplained": 0,
+          "over_after_removing_kept": 0,
+          "over_only_after_removing_kept": 0,
+          "camera": 2,
+          "k": 0.01
+        },
+        {
+          "n_over": 806,
+          "d_max": 0.00039958953857421875,
+          "rounds": [
+            {
+              "pixel": [
+                150,
+                159
+              ],
+              "by": "color",
+              "pattern": "smooth difference",
+              "class": "unclassified",
+              "n_keep": 1,
+              "keep": [
+                52
+              ],
+              "kappa": [
+                25912.596852385963
+              ],
+              "diff": 0.00044436752796173096,
+              "min_t": 0.7726596593856812,
+              "n_explained": 805
+            },
+            {
+              "pixel": [
+                12,
+                250
+              ],
+              "by": "color",
+              "pattern": "cutoff flip",
+              "class": "transmittance-changed",
+              "n_keep": 1,
+              "keep": [
+                99
+              ],
+              "kappa": [
+                9.734825550665539
+              ],
+              "diff": 0.0034617544151842594,
+              "min_t": 0.9960784316062927,
+              "n_explained": 1
+            }
+          ],
+          "n_unexplained": 0,
+          "over_after_removing_kept": 0,
+          "over_only_after_removing_kept": 0,
+          "camera": 4,
+          "k": 0.01
+        },
+        {
+          "n_over": 1,
+          "d_max": 0.0002409815788269043,
+          "rounds": [
+            {
+              "pixel": [
+                247,
+                34
+              ],
+              "by": "color",
+              "pattern": "cutoff flip",
+              "class": "transmittance-changed",
+              "n_keep": 1,
+              "keep": [
+                22
+              ],
+              "kappa": [
+                11.985679320194816
+              ],
+              "diff": 0.0037946184165775776,
+              "min_t": 0.9960784316062927,
+              "n_explained": 1
+            }
+          ],
+          "n_unexplained": 0,
+          "over_after_removing_kept": 0,
+          "over_only_after_removing_kept": 0,
+          "camera": 2,
+          "k": 100.0
+        },
+        {
+          "n_over": 372,
+          "d_max": 0.00018024444580078125,
+          "rounds": [
+            {
+              "pixel": [
+                147,
+                166
+              ],
+              "by": "color",
+              "pattern": "smooth difference",
+              "class": "unclassified",
+              "n_keep": 1,
+              "keep": [
+                52
+              ],
+              "kappa": [
+                25912.596852385963
+              ],
+              "diff": 0.00020301342010498047,
+              "min_t": 0.758991003036499,
+              "n_explained": 372
+            }
+          ],
+          "n_unexplained": 0,
+          "over_after_removing_kept": 0,
+          "over_only_after_removing_kept": 0,
+          "camera": 4,
+          "k": 100.0
+        }
+      ]
+    },
+    {
+      "relation": "mr4",
+      "scene_idx": 94509,
+      "mode": "opacity_extreme",
+      "n_gaussians": 71,
+      "images": [
+        {
+          "n_over": 1,
+          "d_max": 0.09990125894546509,
+          "rounds": [
+            {
+              "pixel": [
+                22,
+                28
+              ],
+              "by": "color",
+              "pattern": "early stop",
+              "class": "transmittance-changed",
+              "n_keep": 14,
+              "keep": [
+                5,
+                13,
+                15,
+                18,
+                35,
+                37,
+                41,
+                43,
+                45,
+                49,
+                63,
+                65,
+                66,
+                67
+              ],
+              "kappa": [
+                1.3608995218924036,
+                1.0426249585021568,
+                1.5738353431156757,
+                2.5715554514090577,
+                1.6779657497962266,
+                1.8994431808454981
+              ],
+              "diff": 0.07167625427246094,
+              "min_t": 0.00010001659393310547,
+              "n_explained": 1
+            }
+          ],
+          "n_unexplained": 0,
+          "over_after_removing_kept": 0,
+          "over_only_after_removing_kept": 0,
+          "camera": 3,
+          "k": 0.01
+        },
+        {
+          "n_over": 1,
+          "d_max": 0.09990125894546509,
+          "rounds": [
+            {
+              "pixel": [
+                22,
+                28
+              ],
+              "by": "color",
+              "pattern": "early stop",
+              "class": "transmittance-changed",
+              "n_keep": 14,
+              "keep": [
+                5,
+                13,
+                15,
+                18,
+                35,
+                37,
+                41,
+                43,
+                45,
+                49,
+                63,
+                65,
+                66,
+                67
+              ],
+              "kappa": [
+                1.3608995218924036,
+                1.0426249585021568,
+                1.5738353431156757,
+                2.5715554514090577,
+                1.6779657497962266,
+                1.8994431808454981
+              ],
+              "diff": 0.07167628407478333,
+              "min_t": 0.00010001659393310547,
+              "n_explained": 1
+            }
+          ],
+          "n_unexplained": 0,
+          "over_after_removing_kept": 0,
+          "over_only_after_removing_kept": 0,
+          "camera": 3,
+          "k": 100.0
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "images": 26,
+    "px_over": 2127,
+    "px_unexplained": 0,
+    "pixels_per_pattern": {
+      "smooth difference": 1726,
+      "cutoff flip": 397,
+      "early stop": 4
+    }
+  }
+}

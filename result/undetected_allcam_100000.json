@@ -1,0 +1,20 @@
+{
+  "mr5_bug": {
+    "studied": 0,
+    "causes": {},
+    "studied_without_depth_tie": 0,
+    "causes_without_depth_tie": {}
+  },
+  "mr3_xyzwbug": {
+    "studied": 0,
+    "causes": {},
+    "studied_without_depth_tie": 0,
+    "causes_without_depth_tie": {}
+  },
+  "mr4_bug": {
+    "studied": 0,
+    "causes": {},
+    "studied_without_depth_tie": 0,
+    "causes_without_depth_tie": {}
+  }
+}

@@ -1,0 +1,632 @@
+{
+  "violations": [
+    {
+      "relation": "mr1",
+      "scene_idx": 42081,
+      "mode": "anisotropic",
+      "n_gaussians": 1740,
+      "k": 1.0,
+      "camera": 3,
+      "cameras": [
+        {
+          "camera": 0,
+          "d_max": 8.940696716308594e-07,
+          "px_over": 0,
+          "alpha_d_max": 6.556510925292969e-07,
+          "alpha_px_over": 0
+        },
+        {
+          "camera": 1,
+          "d_max": 5.960464477539062e-07,
+          "px_over": 0,
+          "alpha_d_max": 3.5762786865234375e-07,
+          "alpha_px_over": 0
+        },
+        {
+          "camera": 2,
+          "d_max": 5.364418029785156e-07,
+          "px_over": 0,
+          "alpha_d_max": 5.960464477539063e-08,
+          "alpha_px_over": 0
+        },
+        {
+          "camera": 3,
+          "d_max": 0.00033149123191833496,
+          "px_over": 65,
+          "alpha_d_max": 2.294778823852539e-05,
+          "alpha_px_over": 0
+        },
+        {
+          "camera": 4,
+          "d_max": 0.0001284480094909668,
+          "px_over": 1,
+          "alpha_d_max": 0.00013500452041625977,
+          "alpha_px_over": 1
+        },
+        {
+          "camera": 5,
+          "d_max": 3.039836883544922e-06,
+          "px_over": 0,
+          "alpha_d_max": 5.960464477539062e-07,
+          "alpha_px_over": 0
+        }
+      ],
+      "depth_tie": true,
+      "class": "single Gaussian, T unchanged (smooth conic difference?)",
+      "n_keep": 1,
+      "rel_t_change": 0.000739437760785222,
+      "min_depth_gap": null,
+      "pixel": [
+        75,
+        52
+      ],
+      "kappa_kept": [
+        27108.355545843635
+      ],
+      "px_over_without_kept": 0,
+      "d_max_without_kept": 1.3709068298339844e-06
+    },
+    {
+      "relation": "mr4",
+      "scene_idx": 4896,
+      "mode": "anisotropic",
+      "n_gaussians": 17,
+      "k": 0.01,
+      "camera": 0,
+      "cameras": [
+        {
+          "camera": 0,
+          "d_max": 0.001536548137664795,
+          "px_over": 209,
+          "alpha_d_max": 0.0004887580871582031,
+          "alpha_px_over": 62
+        },
+        {
+          "camera": 1,
+          "d_max": 4.231929779052734e-06,
+          "px_over": 0,
+          "alpha_d_max": 4.76837158203125e-06,
+          "alpha_px_over": 0
+        },
+        {
+          "camera": 2,
+          "d_max": 2.980232238769531e-07,
+          "px_over": 0,
+          "alpha_d_max": 3.5762786865234375e-07,
+          "alpha_px_over": 0
+        },
+        {
+          "camera": 3,
+          "d_max": 2.849102020263672e-05,
+          "px_over": 0,
+          "alpha_d_max": 3.5822391510009766e-05,
+          "alpha_px_over": 0
+        },
+        {
+          "camera": 4,
+          "d_max": 5.811452865600586e-07,
+          "px_over": 0,
+          "alpha_d_max": 3.4570693969726562e-06,
+          "alpha_px_over": 0
+        }
+      ],
+      "depth_tie": false,
+      "class": "transmittance-changed",
+      "n_keep": 1,
+      "rel_t_change": 0.003938853740692139,
+      "min_depth_gap": null,
+      "pixel": [
+        52,
+        80
+      ],
+      "kappa_kept": [
+        20182.197456488022
+      ],
+      "px_over_without_kept": 0,
+      "d_max_without_kept": 7.450580596923828e-07
+    },
+    {
+      "relation": "mr4",
+      "scene_idx": 34408,
+      "mode": "anisotropic",
+      "n_gaussians": 11,
+      "k": 0.01,
+      "camera": 3,
+      "cameras": [
+        {
+          "camera": 0,
+          "d_max": 0.0017683804035186768,
+          "px_over": 1,
+          "alpha_d_max": 0.0003134608268737793,
+          "alpha_px_over": 1
+        },
+        {
+          "camera": 1,
+          "d_max": 5.517899990081787e-05,
+          "px_over": 0,
+          "alpha_d_max": 6.580352783203125e-05,
+          "alpha_px_over": 0
+        },
+        {
+          "camera": 2,
+          "d_max": 7.539987564086914e-06,
+          "px_over": 0,
+          "alpha_d_max": 1.1801719665527344e-05,
+          "alpha_px_over": 0
+        },
+        {
+          "camera": 3,
+          "d_max": 0.00012916326522827148,
+          "px_over": 45,
+          "alpha_d_max": 0.00015693902969360352,
+          "alpha_px_over": 58
+        }
+      ],
+      "depth_tie": false,
+      "class": "single Gaussian, T unchanged (smooth conic difference?)",
+      "n_keep": 1,
+      "rel_t_change": 0.00027849554317072034,
+      "min_depth_gap": null,
+      "pixel": [
+        117,
+        255
+      ],
+      "kappa_kept": [
+        20338.956549542752
+      ],
+      "px_over_without_kept": 0,
+      "d_max_without_kept": 1.0132789611816406e-06
+    },
+    {
+      "relation": "mr4",
+      "scene_idx": 38581,
+      "mode": "opacity_extreme",
+      "n_gaussians": 108,
+      "k": 0.01,
+      "camera": 2,
+      "cameras": [
+        {
+          "camera": 0,
+          "d_max": 1.6689300537109375e-06,
+          "px_over": 0,
+          "alpha_d_max": 1.9073486328125e-06,
+          "alpha_px_over": 0
+        },
+        {
+          "camera": 1,
+          "d_max": 1.430511474609375e-06,
+          "px_over": 0,
+          "alpha_d_max": 2.205371856689453e-06,
+          "alpha_px_over": 0
+        },
+        {
+          "camera": 2,
+          "d_max": 0.004657268524169922,
+          "px_over": 1,
+          "alpha_d_max": 0.006000876426696777,
+          "alpha_px_over": 1
+        },
+        {
+          "camera": 3,
+          "d_max": 1.7583370208740234e-06,
+          "px_over": 0,
+          "alpha_d_max": 2.1457672119140625e-06,
+          "alpha_px_over": 0
+        },
+        {
+          "camera": 4,
+          "d_max": 1.7583370208740234e-06,
+          "px_over": 0,
+          "alpha_d_max": 2.7418136596679688e-06,
+          "alpha_px_over": 0
+        },
+        {
+          "camera": 5,
+          "d_max": 1.519918441772461e-06,
+          "px_over": 0,
+          "alpha_d_max": 2.0265579223632812e-06,
+          "alpha_px_over": 0
+        },
+        {
+          "camera": 6,
+          "d_max": 1.341104507446289e-06,
+          "px_over": 0,
+          "alpha_d_max": 2.5033950805664062e-06,
+          "alpha_px_over": 0
+        }
+      ],
+      "depth_tie": false,
+      "class": "transmittance-changed",
+      "n_keep": 5,
+      "rel_t_change": 0.983606219291687,
+      "min_depth_gap": 0.026990697182183495,
+      "pixel": [
+        194,
+        101
+      ],
+      "kappa_kept": [
+        1.122575935727251,
+        5.7952173514827585,
+        2.857237097345856,
+        2.277106088175462,
+        2.362051070092378
+      ],
+      "px_over_without_kept": 0,
+      "d_max_without_kept": 2.2649765014648438e-06
+    },
+    {
+      "relation": "mr4",
+      "scene_idx": 42367,
+      "mode": "anisotropic",
+      "n_gaussians": 26,
+      "k": 0.01,
+      "camera": 4,
+      "cameras": [
+        {
+          "camera": 0,
+          "d_max": 6.732344627380371e-05,
+          "px_over": 0,
+          "alpha_d_max": 7.557868957519531e-05,
+          "alpha_px_over": 0
+        },
+        {
+          "camera": 1,
+          "d_max": 4.1425228118896484e-06,
+          "px_over": 0,
+          "alpha_d_max": 4.649162292480469e-06,
+          "alpha_px_over": 0
+        },
+        {
+          "camera": 2,
+          "d_max": 0.0019795894622802734,
+          "px_over": 1,
+          "alpha_d_max": 0.0010814666748046875,
+          "alpha_px_over": 1
+        },
+        {
+          "camera": 3,
+          "d_max": 0.0024771392345428467,
+          "px_over": 1,
+          "alpha_d_max": 0.0033785104751586914,
+          "alpha_px_over": 1
+        },
+        {
+          "camera": 4,
+          "d_max": 0.003376282751560211,
+          "px_over": 136,
+          "alpha_d_max": 0.003840804100036621,
+          "alpha_px_over": 123
+        }
+      ],
+      "depth_tie": false,
+      "class": "transmittance-changed",
+      "n_keep": 1,
+      "rel_t_change": 0.003928124904632568,
+      "min_depth_gap": null,
+      "pixel": [
+        32,
+        207
+      ],
+      "kappa_kept": [
+        13434.163134915001
+      ],
+      "px_over_without_kept": 0,
+      "d_max_without_kept": 4.976987838745117e-06
+    },
+    {
+      "relation": "mr4",
+      "scene_idx": 69294,
+      "mode": "anisotropic",
+      "n_gaussians": 12,
+      "k": 0.01,
+      "camera": 1,
+      "cameras": [
+        {
+          "camera": 0,
+          "d_max": 1.7881393432617188e-07,
+          "px_over": 0,
+          "alpha_d_max": 5.960464477539063e-08,
+          "alpha_px_over": 0
+        },
+        {
+          "camera": 1,
+          "d_max": 0.00019571185111999512,
+          "px_over": 37,
+          "alpha_d_max": 6.556510925292969e-06,
+          "alpha_px_over": 0
+        },
+        {
+          "camera": 2,
+          "d_max": 4.172325134277344e-07,
+          "px_over": 0,
+          "alpha_d_max": 6.556510925292969e-07,
+          "alpha_px_over": 0
+        },
+        {
+          "camera": 3,
+          "d_max": 2.384185791015625e-07,
+          "px_over": 0,
+          "alpha_d_max": 5.960464477539063e-08,
+          "alpha_px_over": 0
+        },
+        {
+          "camera": 4,
+          "d_max": 4.76837158203125e-07,
+          "px_over": 0,
+          "alpha_d_max": 2.384185791015625e-07,
+          "alpha_px_over": 0
+        },
+        {
+          "camera": 5,
+          "d_max": 2.384185791015625e-07,
+          "px_over": 0,
+          "alpha_d_max": 1.1920928955078125e-07,
+          "alpha_px_over": 0
+        },
+        {
+          "camera": 6,
+          "d_max": 2.086162567138672e-07,
+          "px_over": 0,
+          "alpha_d_max": 1.1920928955078125e-07,
+          "alpha_px_over": 0
+        },
+        {
+          "camera": 7,
+          "d_max": 2.980232238769531e-07,
+          "px_over": 0,
+          "alpha_d_max": 1.7881393432617188e-07,
+          "alpha_px_over": 0
+        }
+      ],
+      "depth_tie": false,
+      "class": "single Gaussian, T unchanged (smooth conic difference?)",
+      "n_keep": 1,
+      "rel_t_change": 0.000992509420029819,
+      "min_depth_gap": null,
+      "pixel": [
+        42,
+        29
+      ],
+      "kappa_kept": [
+        18713.0581128166
+      ],
+      "px_over_without_kept": 0,
+      "d_max_without_kept": 3.725290298461914e-07
+    },
+    {
+      "relation": "mr4",
+      "scene_idx": 77409,
+      "mode": "opacity_extreme",
+      "n_gaussians": 120,
+      "k": 100.0,
+      "camera": 2,
+      "cameras": [
+        {
+          "camera": 0,
+          "d_max": 1.2516975402832031e-06,
+          "px_over": 0,
+          "alpha_d_max": 1.3709068298339844e-06,
+          "alpha_px_over": 0
+        },
+        {
+          "camera": 1,
+          "d_max": 9.5367431640625e-07,
+          "px_over": 0,
+          "alpha_d_max": 1.6093254089355469e-06,
+          "alpha_px_over": 0
+        },
+        {
+          "camera": 2,
+          "d_max": 0.01523125171661377,
+          "px_over": 1,
+          "alpha_d_max": 0.036933958530426025,
+          "alpha_px_over": 1
+        },
+        {
+          "camera": 3,
+          "d_max": 1.1324882507324219e-06,
+          "px_over": 0,
+          "alpha_d_max": 1.4901161193847656e-06,
+          "alpha_px_over": 0
+        },
+        {
+          "camera": 4,
+          "d_max": 1.1324882507324219e-06,
+          "px_over": 0,
+          "alpha_d_max": 1.5497207641601562e-06,
+          "alpha_px_over": 0
+        },
+        {
+          "camera": 5,
+          "d_max": 0.0004156827926635742,
+          "px_over": 1,
+          "alpha_d_max": 0.0004800558090209961,
+          "alpha_px_over": 1
+        },
+        {
+          "camera": 6,
+          "d_max": 1.6093254089355469e-06,
+          "px_over": 0,
+          "alpha_d_max": 1.6689300537109375e-06,
+          "alpha_px_over": 0
+        }
+      ],
+      "depth_tie": false,
+      "class": "transmittance-changed",
+      "n_keep": 11,
+      "rel_t_change": 0.997299313545227,
+      "min_depth_gap": 0.014396861885628599,
+      "pixel": [
+        105,
+        136
+      ],
+      "kappa_kept": [
+        1.084988294225567,
+        1.439317515386627,
+        2.342705520347577,
+        3.654914820638517,
+        2.3292029574524515,
+        1.675926355528519,
+        3.7955934736448618,
+        1.2409272027294385,
+        1.3162819836258906,
+        1.0684311812939609,
+        1.5620441088730463
+      ],
+      "px_over_without_kept": 0,
+      "d_max_without_kept": 1.4007091522216797e-06
+    },
+    {
+      "relation": "mr4",
+      "scene_idx": 79993,
+      "mode": "anisotropic",
+      "n_gaussians": 135,
+      "k": 0.01,
+      "camera": 4,
+      "cameras": [
+        {
+          "camera": 0,
+          "d_max": 0.0027205348014831543,
+          "px_over": 1,
+          "alpha_d_max": 4.76837158203125e-07,
+          "alpha_px_over": 0
+        },
+        {
+          "camera": 1,
+          "d_max": 1.8894672393798828e-05,
+          "px_over": 0,
+          "alpha_d_max": 2.086162567138672e-06,
+          "alpha_px_over": 0
+        },
+        {
+          "camera": 2,
+          "d_max": 0.00012886524200439453,
+          "px_over": 1,
+          "alpha_d_max": 3.5643577575683594e-05,
+          "alpha_px_over": 0
+        },
+        {
+          "camera": 3,
+          "d_max": 1.817941665649414e-06,
+          "px_over": 0,
+          "alpha_d_max": 5.364418029785156e-07,
+          "alpha_px_over": 0
+        },
+        {
+          "camera": 4,
+          "d_max": 0.00039958953857421875,
+          "px_over": 806,
+          "alpha_d_max": 0.00013005733489990234,
+          "alpha_px_over": 1
+        },
+        {
+          "camera": 5,
+          "d_max": 1.7285346984863281e-06,
+          "px_over": 0,
+          "alpha_d_max": 5.960464477539063e-08,
+          "alpha_px_over": 0
+        }
+      ],
+      "depth_tie": false,
+      "class": "single Gaussian, T unchanged (smooth conic difference?)",
+      "n_keep": 1,
+      "rel_t_change": 0.000636249256785959,
+      "min_depth_gap": null,
+      "pixel": [
+        150,
+        159
+      ],
+      "kappa_kept": [
+        25912.596852385963
+      ],
+      "px_over_without_kept": 1,
+      "d_max_without_kept": 0.00015181303024291992
+    },
+    {
+      "relation": "mr4",
+      "scene_idx": 94509,
+      "mode": "opacity_extreme",
+      "n_gaussians": 71,
+      "k": 100.0,
+      "camera": 3,
+      "cameras": [
+        {
+          "camera": 0,
+          "d_max": 4.76837158203125e-07,
+          "px_over": 0,
+          "alpha_d_max": 3.5762786865234375e-07,
+          "alpha_px_over": 0
+        },
+        {
+          "camera": 1,
+          "d_max": 2.980232238769531e-07,
+          "px_over": 0,
+          "alpha_d_max": 3.5762786865234375e-07,
+          "alpha_px_over": 0
+        },
+        {
+          "camera": 2,
+          "d_max": 5.364418029785156e-07,
+          "px_over": 0,
+          "alpha_d_max": 5.960464477539062e-07,
+          "alpha_px_over": 0
+        },
+        {
+          "camera": 3,
+          "d_max": 0.07167628407478333,
+          "px_over": 1,
+          "alpha_d_max": 0.09990125894546509,
+          "alpha_px_over": 1
+        },
+        {
+          "camera": 4,
+          "d_max": 2.384185791015625e-07,
+          "px_over": 0,
+          "alpha_d_max": 4.172325134277344e-07,
+          "alpha_px_over": 0
+        },
+        {
+          "camera": 5,
+          "d_max": 4.470348358154297e-07,
+          "px_over": 0,
+          "alpha_d_max": 5.960464477539062e-07,
+          "alpha_px_over": 0
+        },
+        {
+          "camera": 6,
+          "d_max": 3.2782554626464844e-07,
+          "px_over": 0,
+          "alpha_d_max": 3.5762786865234375e-07,
+          "alpha_px_over": 0
+        }
+      ],
+      "depth_tie": false,
+      "class": "transmittance-changed",
+      "n_keep": 14,
+      "rel_t_change": 0.998999834060669,
+      "min_depth_gap": 0.0016435900367921814,
+      "pixel": [
+        22,
+        28
+      ],
+      "kappa_kept": [
+        1.3608995218924036,
+        1.0426249585021568,
+        1.5738353431156757,
+        2.5715554514090577,
+        1.6779657497962266,
+        1.8994431808454981,
+        1.4261431781468947,
+        2.5046036033093806,
+        2.609557853685405,
+        1.264075851322452,
+        1.634724201683309,
+        1.6857337160698085,
+        3.853521716771214,
+        1.0128740488611154
+      ],
+      "px_over_without_kept": 0,
+      "d_max_without_kept": 7.152557373046875e-07
+    }
+  ]
+}

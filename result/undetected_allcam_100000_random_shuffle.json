@@ -1,0 +1,27 @@
+{
+  "mr5_bug": {
+    "studied": 33,
+    "causes": {
+      "visible_all_fixed_points": 30,
+      "affected_gaussians_contribute_nothing": 3
+    },
+    "studied_without_depth_tie": 33,
+    "causes_without_depth_tie": {
+      "visible_all_fixed_points": 30,
+      "affected_gaussians_contribute_nothing": 3
+    },
+    "mean_alt_detect_rate_fixed_point_scenes": 0.9229166666666667
+  },
+  "mr3_xyzwbug": {
+    "studied": 0,
+    "causes": {},
+    "studied_without_depth_tie": 0,
+    "causes_without_depth_tie": {}
+  },
+  "mr4_bug": {
+    "studied": 0,
+    "causes": {},
+    "studied_without_depth_tie": 0,
+    "causes_without_depth_tie": {}
+  }
+}

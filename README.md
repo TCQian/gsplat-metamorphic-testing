@@ -80,6 +80,18 @@ Verdicts (`gsplat_mt/metrics.py`):
 
 `mr4_exact_verdict` checks the power-of-two factors with tolerance 0 and is never relabeled. Per-scene coverage columns (`coverage_mean`, `coverage_min`, `n_covered_px`, `opaque_frac_mean`, `n_visible_any`) show how many pixels a pass rests on.
 
+`result/` holds the outputs behind `docs/`:
+
+| Files | From |
+| --- | --- |
+| `allcam_100000_summary.json`, `allcam_100000_findings.csv`, `undetected_allcam_100000.json` | the 100,000-scene all-camera run (`soc-cluster.sh large`, then `soc-cluster-diagnose.sh undetected`) |
+| `allcam_100000_random_shuffle_summary.json`, `undetected_allcam_100000_random_shuffle.{csv,json}` | the same run with a random shuffle for MR5 instead of a derangement (MR1-MR4 identical) |
+| `open_violations.json`, `open_pixels.json` | `soc-cluster-diagnose.sh violations` |
+| `open_derangement.json`, `open_nothing.json`, `open_coverage.json` | `soc-cluster-diagnose.sh followup` on the random-shuffle run |
+| `bisect/*.jsonl` | `soc-cluster-diagnose.sh mr4 mr1`: one bisection per finding, with its pattern |
+
+The per-scene CSV of the run (about 100 MB) is not included; `soc-cluster.sh large` regenerates it.
+
 ## Layout
 
 ```
@@ -105,6 +117,7 @@ diagnosis/                replay scenes from a results CSV and explain findings
 docs/
   concluding_report.md    results, root causes, usefulness
   progress/week07-14.md   weekly progress notes
+result/                   outputs of the runs reported in docs/
 soc-cluster.sh            SLURM: preliminary and large-scale study
 soc-cluster-diagnose.sh   SLURM: diagnosis steps
 ```

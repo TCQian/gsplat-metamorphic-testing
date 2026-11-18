@@ -1,0 +1,43 @@
+{
+  "nothing": [
+    {
+      "scene_idx": 19826,
+      "mode": "far_clipped",
+      "n_affected": 1,
+      "affected": [
+        {
+          "gaussian": 1,
+          "opacity": 0.6075820922851562,
+          "max_alpha_alone": 0.0,
+          "reaches_pixel_alone": false
+        }
+      ]
+    },
+    {
+      "scene_idx": 49565,
+      "mode": "far_clipped",
+      "n_affected": 1,
+      "affected": [
+        {
+          "gaussian": 49,
+          "opacity": 0.15441764891147614,
+          "max_alpha_alone": 0.0,
+          "reaches_pixel_alone": false
+        }
+      ]
+    },
+    {
+      "scene_idx": 62124,
+      "mode": "wide_spread",
+      "n_affected": 1,
+      "affected": [
+        {
+          "gaussian": 3,
+          "opacity": 0.6106424331665039,
+          "max_alpha_alone": 0.0,
+          "reaches_pixel_alone": false
+        }
+      ]
+    }
+  ]
+}

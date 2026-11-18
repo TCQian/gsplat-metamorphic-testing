@@ -1,0 +1,305 @@
+{
+  "derangement": [
+    {
+      "scene_idx": 3448,
+      "mode": "far_clipped",
+      "n_gaussians": 26,
+      "cause": "visible_all_fixed_points",
+      "detected_random_shuffle": false,
+      "detected_derangement": true,
+      "correct_relation_with_derangement": "pass"
+    },
+    {
+      "scene_idx": 4165,
+      "mode": "opacity_extreme",
+      "n_gaussians": 10,
+      "cause": "visible_all_fixed_points",
+      "detected_random_shuffle": false,
+      "detected_derangement": true,
+      "correct_relation_with_derangement": "pass"
+    },
+    {
+      "scene_idx": 16447,
+      "mode": "far_clipped",
+      "n_gaussians": 15,
+      "cause": "visible_all_fixed_points",
+      "detected_random_shuffle": false,
+      "detected_derangement": true,
+      "correct_relation_with_derangement": "pass"
+    },
+    {
+      "scene_idx": 17647,
+      "mode": "far_clipped",
+      "n_gaussians": 13,
+      "cause": "visible_all_fixed_points",
+      "detected_random_shuffle": false,
+      "detected_derangement": true,
+      "correct_relation_with_derangement": "pass"
+    },
+    {
+      "scene_idx": 19826,
+      "mode": "far_clipped",
+      "n_gaussians": 12,
+      "cause": "affected_gaussians_contribute_nothing",
+      "detected_random_shuffle": false,
+      "detected_derangement": true,
+      "correct_relation_with_derangement": "pass"
+    },
+    {
+      "scene_idx": 25966,
+      "mode": "far_clipped",
+      "n_gaussians": 17,
+      "cause": "visible_all_fixed_points",
+      "detected_random_shuffle": false,
+      "detected_derangement": true,
+      "correct_relation_with_derangement": "pass"
+    },
+    {
+      "scene_idx": 28580,
+      "mode": "far_clipped",
+      "n_gaussians": 12,
+      "cause": "visible_all_fixed_points",
+      "detected_random_shuffle": false,
+      "detected_derangement": true,
+      "correct_relation_with_derangement": "pass"
+    },
+    {
+      "scene_idx": 33448,
+      "mode": "wide_spread",
+      "n_gaussians": 21,
+      "cause": "visible_all_fixed_points",
+      "detected_random_shuffle": false,
+      "detected_derangement": true,
+      "correct_relation_with_derangement": "pass"
+    },
+    {
+      "scene_idx": 34450,
+      "mode": "wide_spread",
+      "n_gaussians": 13,
+      "cause": "visible_all_fixed_points",
+      "detected_random_shuffle": false,
+      "detected_derangement": true,
+      "correct_relation_with_derangement": "pass"
+    },
+    {
+      "scene_idx": 37596,
+      "mode": "wide_spread",
+      "n_gaussians": 12,
+      "cause": "visible_all_fixed_points",
+      "detected_random_shuffle": false,
+      "detected_derangement": true,
+      "correct_relation_with_derangement": "pass"
+    },
+    {
+      "scene_idx": 40858,
+      "mode": "wide_spread",
+      "n_gaussians": 11,
+      "cause": "visible_all_fixed_points",
+      "detected_random_shuffle": false,
+      "detected_derangement": true,
+      "correct_relation_with_derangement": "pass"
+    },
+    {
+      "scene_idx": 42512,
+      "mode": "far_clipped",
+      "n_gaussians": 15,
+      "cause": "visible_all_fixed_points",
+      "detected_random_shuffle": false,
+      "detected_derangement": true,
+      "correct_relation_with_derangement": "pass"
+    },
+    {
+      "scene_idx": 43164,
+      "mode": "far_clipped",
+      "n_gaussians": 18,
+      "cause": "visible_all_fixed_points",
+      "detected_random_shuffle": false,
+      "detected_derangement": true,
+      "correct_relation_with_derangement": "pass"
+    },
+    {
+      "scene_idx": 45260,
+      "mode": "far_clipped",
+      "n_gaussians": 22,
+      "cause": "visible_all_fixed_points",
+      "detected_random_shuffle": false,
+      "detected_derangement": true,
+      "correct_relation_with_derangement": "pass"
+    },
+    {
+      "scene_idx": 46556,
+      "mode": "far_clipped",
+      "n_gaussians": 12,
+      "cause": "visible_all_fixed_points",
+      "detected_random_shuffle": false,
+      "detected_derangement": true,
+      "correct_relation_with_derangement": "pass"
+    },
+    {
+      "scene_idx": 49565,
+      "mode": "far_clipped",
+      "n_gaussians": 91,
+      "cause": "affected_gaussians_contribute_nothing",
+      "detected_random_shuffle": false,
+      "detected_derangement": true,
+      "correct_relation_with_derangement": "pass"
+    },
+    {
+      "scene_idx": 60138,
+      "mode": "far_clipped",
+      "n_gaussians": 12,
+      "cause": "visible_all_fixed_points",
+      "detected_random_shuffle": false,
+      "detected_derangement": true,
+      "correct_relation_with_derangement": "pass"
+    },
+    {
+      "scene_idx": 62124,
+      "mode": "wide_spread",
+      "n_gaussians": 11,
+      "cause": "affected_gaussians_contribute_nothing",
+      "detected_random_shuffle": false,
+      "detected_derangement": true,
+      "correct_relation_with_derangement": "pass"
+    },
+    {
+      "scene_idx": 70515,
+      "mode": "far_clipped",
+      "n_gaussians": 65,
+      "cause": "visible_all_fixed_points",
+      "detected_random_shuffle": false,
+      "detected_derangement": true,
+      "correct_relation_with_derangement": "pass"
+    },
+    {
+      "scene_idx": 71718,
+      "mode": "far_clipped",
+      "n_gaussians": 25,
+      "cause": "visible_all_fixed_points",
+      "detected_random_shuffle": false,
+      "detected_derangement": true,
+      "correct_relation_with_derangement": "pass"
+    },
+    {
+      "scene_idx": 75097,
+      "mode": "far_clipped",
+      "n_gaussians": 11,
+      "cause": "visible_all_fixed_points",
+      "detected_random_shuffle": false,
+      "detected_derangement": true,
+      "correct_relation_with_derangement": "pass"
+    },
+    {
+      "scene_idx": 75153,
+      "mode": "far_clipped",
+      "n_gaussians": 13,
+      "cause": "visible_all_fixed_points",
+      "detected_random_shuffle": false,
+      "detected_derangement": true,
+      "correct_relation_with_derangement": "pass"
+    },
+    {
+      "scene_idx": 76103,
+      "mode": "far_clipped",
+      "n_gaussians": 13,
+      "cause": "visible_all_fixed_points",
+      "detected_random_shuffle": false,
+      "detected_derangement": true,
+      "correct_relation_with_derangement": "pass"
+    },
+    {
+      "scene_idx": 76436,
+      "mode": "far_clipped",
+      "n_gaussians": 17,
+      "cause": "visible_all_fixed_points",
+      "detected_random_shuffle": false,
+      "detected_derangement": true,
+      "correct_relation_with_derangement": "pass"
+    },
+    {
+      "scene_idx": 77561,
+      "mode": "far_clipped",
+      "n_gaussians": 12,
+      "cause": "visible_all_fixed_points",
+      "detected_random_shuffle": false,
+      "detected_derangement": true,
+      "correct_relation_with_derangement": "pass"
+    },
+    {
+      "scene_idx": 82064,
+      "mode": "far_clipped",
+      "n_gaussians": 11,
+      "cause": "visible_all_fixed_points",
+      "detected_random_shuffle": false,
+      "detected_derangement": true,
+      "correct_relation_with_derangement": "pass"
+    },
+    {
+      "scene_idx": 82126,
+      "mode": "far_clipped",
+      "n_gaussians": 14,
+      "cause": "visible_all_fixed_points",
+      "detected_random_shuffle": false,
+      "detected_derangement": true,
+      "correct_relation_with_derangement": "pass"
+    },
+    {
+      "scene_idx": 82952,
+      "mode": "far_clipped",
+      "n_gaussians": 10,
+      "cause": "visible_all_fixed_points",
+      "detected_random_shuffle": false,
+      "detected_derangement": true,
+      "correct_relation_with_derangement": "pass"
+    },
+    {
+      "scene_idx": 83644,
+      "mode": "far_clipped",
+      "n_gaussians": 16,
+      "cause": "visible_all_fixed_points",
+      "detected_random_shuffle": false,
+      "detected_derangement": true,
+      "correct_relation_with_derangement": "pass"
+    },
+    {
+      "scene_idx": 87582,
+      "mode": "far_clipped",
+      "n_gaussians": 15,
+      "cause": "visible_all_fixed_points",
+      "detected_random_shuffle": false,
+      "detected_derangement": true,
+      "correct_relation_with_derangement": "pass"
+    },
+    {
+      "scene_idx": 95314,
+      "mode": "far_clipped",
+      "n_gaussians": 15,
+      "cause": "visible_all_fixed_points",
+      "detected_random_shuffle": false,
+      "detected_derangement": true,
+      "correct_relation_with_derangement": "pass"
+    },
+    {
+      "scene_idx": 96762,
+      "mode": "far_clipped",
+      "n_gaussians": 12,
+      "cause": "visible_all_fixed_points",
+      "detected_random_shuffle": false,
+      "detected_derangement": true,
+      "correct_relation_with_derangement": "pass"
+    },
+    {
+      "scene_idx": 99358,
+      "mode": "far_clipped",
+      "n_gaussians": 13,
+      "cause": "visible_all_fixed_points",
+      "detected_random_shuffle": false,
+      "detected_derangement": true,
+      "correct_relation_with_derangement": "pass"
+    }
+  ],
+  "summary": {
+    "affected_gaussians_contribute_nothing / derangement detects=True": 3,
+    "visible_all_fixed_points / derangement detects=True": 30
+  }
+}

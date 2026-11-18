@@ -1,0 +1,612 @@
+{
+  "coverage": [
+    {
+      "scene_idx": 3,
+      "n_gaussians": 692,
+      "csv_coverage_mean": 0.3938140869140625,
+      "coverage_x1": 0.3938140869140625,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.2761389017105103,
+      "coverage_x2": 0.4990132749080658,
+      "coverage_x3": 0.6101176142692566
+    },
+    {
+      "scene_idx": 15,
+      "n_gaussians": 300,
+      "csv_coverage_mean": 0.3640398383140564,
+      "coverage_x1": 0.3640398383140564,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.3291106224060059,
+      "coverage_x2": 0.5197492837905884,
+      "coverage_x3": 0.6977975368499756
+    },
+    {
+      "scene_idx": 29,
+      "n_gaussians": 372,
+      "csv_coverage_mean": 0.2723592221736908,
+      "coverage_x1": 0.2723592221736908,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.4234293699264526,
+      "coverage_x2": 0.3775634765625,
+      "coverage_x3": 0.5023600459098816
+    },
+    {
+      "scene_idx": 53,
+      "n_gaussians": 300,
+      "csv_coverage_mean": 0.6623204946517944,
+      "coverage_x1": 0.6623204946517944,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.2640401124954224,
+      "coverage_x2": 0.8516973257064819,
+      "coverage_x3": 0.9478480219841003
+    },
+    {
+      "scene_idx": 55,
+      "n_gaussians": 300,
+      "csv_coverage_mean": 0.39923095703125,
+      "coverage_x1": 0.39923095703125,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.3443022966384888,
+      "coverage_x2": 0.57647705078125,
+      "coverage_x3": 0.758941650390625
+    },
+    {
+      "scene_idx": 61,
+      "n_gaussians": 1578,
+      "csv_coverage_mean": 0.3042968809604645,
+      "coverage_x1": 0.3042968809604645,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.756271481513977,
+      "coverage_x2": 0.36042481660842896,
+      "coverage_x3": 0.4250732362270355
+    },
+    {
+      "scene_idx": 77,
+      "n_gaussians": 300,
+      "csv_coverage_mean": 0.4162937104701996,
+      "coverage_x1": 0.4162936806678772,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.237173318862915,
+      "coverage_x2": 0.5799899697303772,
+      "coverage_x3": 0.7297024130821228
+    },
+    {
+      "scene_idx": 82,
+      "n_gaussians": 311,
+      "csv_coverage_mean": 0.5966975688934326,
+      "coverage_x1": 0.5966975092887878,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.3239067792892456,
+      "coverage_x2": 0.7714506387710571,
+      "coverage_x3": 0.890524685382843
+    },
+    {
+      "scene_idx": 90,
+      "n_gaussians": 300,
+      "csv_coverage_mean": 0.4404703974723816,
+      "coverage_x1": 0.4404703974723816,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.2536381483078003,
+      "coverage_x2": 0.6310221552848816,
+      "coverage_x3": 0.7948812246322632
+    },
+    {
+      "scene_idx": 92,
+      "n_gaussians": 300,
+      "csv_coverage_mean": 0.4139302670955658,
+      "coverage_x1": 0.4139302670955658,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.2481780052185059,
+      "coverage_x2": 0.6037648916244507,
+      "coverage_x3": 0.7865957021713257
+    },
+    {
+      "scene_idx": 106,
+      "n_gaussians": 348,
+      "csv_coverage_mean": 0.291168212890625,
+      "coverage_x1": 0.291168212890625,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.3688592910766602,
+      "coverage_x2": 0.393463134765625,
+      "coverage_x3": 0.515228271484375
+    },
+    {
+      "scene_idx": 107,
+      "n_gaussians": 300,
+      "csv_coverage_mean": 0.6503124833106995,
+      "coverage_x1": 0.6503124833106995,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.2894314527511597,
+      "coverage_x2": 0.813703715801239,
+      "coverage_x3": 0.9187152981758118
+    },
+    {
+      "scene_idx": 109,
+      "n_gaussians": 1098,
+      "csv_coverage_mean": 0.2808685302734375,
+      "coverage_x1": 0.2808685302734375,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.3636225461959839,
+      "coverage_x2": 0.3502044677734375,
+      "coverage_x3": 0.425811767578125
+    },
+    {
+      "scene_idx": 111,
+      "n_gaussians": 337,
+      "csv_coverage_mean": 0.3402099609375,
+      "coverage_x1": 0.3402099609375,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.3364276885986328,
+      "coverage_x2": 0.4637451171875,
+      "coverage_x3": 0.61279296875
+    },
+    {
+      "scene_idx": 127,
+      "n_gaussians": 612,
+      "csv_coverage_mean": 0.318206787109375,
+      "coverage_x1": 0.318206787109375,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.479382038116455,
+      "coverage_x2": 0.41583251953125,
+      "coverage_x3": 0.535552978515625
+    },
+    {
+      "scene_idx": 128,
+      "n_gaussians": 960,
+      "csv_coverage_mean": 0.3589121699333191,
+      "coverage_x1": 0.3589121699333191,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.3486632108688354,
+      "coverage_x2": 0.4645589292049408,
+      "coverage_x3": 0.5809733271598816
+    },
+    {
+      "scene_idx": 149,
+      "n_gaussians": 300,
+      "csv_coverage_mean": 0.4402669370174408,
+      "coverage_x1": 0.4402669370174408,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.5250122547149658,
+      "coverage_x2": 0.5917155146598816,
+      "coverage_x3": 0.744873046875
+    },
+    {
+      "scene_idx": 150,
+      "n_gaussians": 2122,
+      "csv_coverage_mean": 0.3460693359375,
+      "coverage_x1": 0.3460693359375,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.8307745456695557,
+      "coverage_x2": 0.40191650390625,
+      "coverage_x3": 0.46478271484375
+    },
+    {
+      "scene_idx": 169,
+      "n_gaussians": 300,
+      "csv_coverage_mean": 0.5610090494155884,
+      "coverage_x1": 0.5610090494155884,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.2947971820831299,
+      "coverage_x2": 0.7577689290046692,
+      "coverage_x3": 0.8917498588562012
+    },
+    {
+      "scene_idx": 171,
+      "n_gaussians": 3239,
+      "csv_coverage_mean": 0.5167360901832581,
+      "coverage_x1": 0.5167360901832581,
+      "visible_share": 1.0,
+      "radius_ratio_median": 2.1092610359191895,
+      "coverage_x2": 0.5773147940635681,
+      "coverage_x3": 0.6402430534362793
+    },
+    {
+      "scene_idx": 174,
+      "n_gaussians": 300,
+      "csv_coverage_mean": 0.5587209463119507,
+      "coverage_x1": 0.5587209463119507,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.252557396888733,
+      "coverage_x2": 0.7586517333984375,
+      "coverage_x3": 0.8928884267807007
+    },
+    {
+      "scene_idx": 187,
+      "n_gaussians": 2778,
+      "csv_coverage_mean": 0.3275807797908783,
+      "coverage_x1": 0.3275807797908783,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.4213454723358154,
+      "coverage_x2": 0.36898550391197205,
+      "coverage_x3": 0.4110260009765625
+    },
+    {
+      "scene_idx": 208,
+      "n_gaussians": 300,
+      "csv_coverage_mean": 0.5278981924057007,
+      "coverage_x1": 0.5278981924057007,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.2312426567077637,
+      "coverage_x2": 0.7314605712890625,
+      "coverage_x3": 0.8780593872070312
+    },
+    {
+      "scene_idx": 212,
+      "n_gaussians": 300,
+      "csv_coverage_mean": 0.6568518877029419,
+      "coverage_x1": 0.6568518280982971,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.2947286367416382,
+      "coverage_x2": 0.8220987915992737,
+      "coverage_x3": 0.9232098460197449
+    },
+    {
+      "scene_idx": 220,
+      "n_gaussians": 300,
+      "csv_coverage_mean": 0.2368774563074112,
+      "coverage_x1": 0.2368774563074112,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.3899012804031372,
+      "coverage_x2": 0.338047593832016,
+      "coverage_x3": 0.4615478813648224
+    },
+    {
+      "scene_idx": 226,
+      "n_gaussians": 2483,
+      "csv_coverage_mean": 0.3079681396484375,
+      "coverage_x1": 0.3079681396484375,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.9315508604049683,
+      "coverage_x2": 0.34543609619140625,
+      "coverage_x3": 0.38947296142578125
+    },
+    {
+      "scene_idx": 236,
+      "n_gaussians": 300,
+      "csv_coverage_mean": 0.5635986328125,
+      "coverage_x1": 0.5635986328125,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.2708321809768677,
+      "coverage_x2": 0.7965113520622253,
+      "coverage_x3": 0.9347738027572632
+    },
+    {
+      "scene_idx": 264,
+      "n_gaussians": 1564,
+      "csv_coverage_mean": 0.4162699580192566,
+      "coverage_x1": 0.4162699580192566,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.36741042137146,
+      "coverage_x2": 0.4945882260799408,
+      "coverage_x3": 0.5733134150505066
+    },
+    {
+      "scene_idx": 270,
+      "n_gaussians": 996,
+      "csv_coverage_mean": 0.4856933653354645,
+      "coverage_x1": 0.4856933653354645,
+      "visible_share": 0.9999999403953552,
+      "radius_ratio_median": 1.4314366579055786,
+      "coverage_x2": 0.5925537347793579,
+      "coverage_x3": 0.707470715045929
+    },
+    {
+      "scene_idx": 272,
+      "n_gaussians": 602,
+      "csv_coverage_mean": 0.7337731719017029,
+      "coverage_x1": 0.7337731719017029,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.405826449394226,
+      "coverage_x2": 0.8574884533882141,
+      "coverage_x3": 0.9432870149612427
+    },
+    {
+      "scene_idx": 274,
+      "n_gaussians": 4130,
+      "csv_coverage_mean": 0.284763902425766,
+      "coverage_x1": 0.284763902425766,
+      "visible_share": 1.0,
+      "radius_ratio_median": 2.3039650917053223,
+      "coverage_x2": 0.3115321695804596,
+      "coverage_x3": 0.3432268500328064
+    },
+    {
+      "scene_idx": 283,
+      "n_gaussians": 725,
+      "csv_coverage_mean": 0.42244720458984375,
+      "coverage_x1": 0.42244720458984375,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.2582957744598389,
+      "coverage_x2": 0.5319595336914062,
+      "coverage_x3": 0.6519622802734375
+    },
+    {
+      "scene_idx": 285,
+      "n_gaussians": 300,
+      "csv_coverage_mean": 0.6992129683494568,
+      "coverage_x1": 0.6992129683494568,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.3860976696014404,
+      "coverage_x2": 0.8552430272102356,
+      "coverage_x3": 0.9417939782142639
+    },
+    {
+      "scene_idx": 306,
+      "n_gaussians": 300,
+      "csv_coverage_mean": 0.456787109375,
+      "coverage_x1": 0.456787109375,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.4567997455596924,
+      "coverage_x2": 0.606201171875,
+      "coverage_x3": 0.775146484375
+    },
+    {
+      "scene_idx": 329,
+      "n_gaussians": 300,
+      "csv_coverage_mean": 0.4333147406578064,
+      "coverage_x1": 0.4333147406578064,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.6231770515441895,
+      "coverage_x2": 0.6248605251312256,
+      "coverage_x3": 0.7989676594734192
+    },
+    {
+      "scene_idx": 359,
+      "n_gaussians": 948,
+      "csv_coverage_mean": 0.395751953125,
+      "coverage_x1": 0.395751953125,
+      "visible_share": 0.9999999403953552,
+      "radius_ratio_median": 2.021930694580078,
+      "coverage_x2": 0.4662109315395355,
+      "coverage_x3": 0.554394543170929
+    },
+    {
+      "scene_idx": 363,
+      "n_gaussians": 300,
+      "csv_coverage_mean": 0.4193115234375,
+      "coverage_x1": 0.4193115234375,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.2213711738586426,
+      "coverage_x2": 0.58013916015625,
+      "coverage_x3": 0.72821044921875
+    },
+    {
+      "scene_idx": 375,
+      "n_gaussians": 714,
+      "csv_coverage_mean": 0.8017592430114746,
+      "coverage_x1": 0.8017592430114746,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.5392296314239502,
+      "coverage_x2": 0.9675925970077515,
+      "coverage_x3": 1.0
+    },
+    {
+      "scene_idx": 376,
+      "n_gaussians": 300,
+      "csv_coverage_mean": 0.4115397334098816,
+      "coverage_x1": 0.4115397334098816,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.5267635583877563,
+      "coverage_x2": 0.5569661855697632,
+      "coverage_x3": 0.7252604365348816
+    },
+    {
+      "scene_idx": 406,
+      "n_gaussians": 300,
+      "csv_coverage_mean": 0.5892438292503357,
+      "coverage_x1": 0.5892438292503357,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.321527361869812,
+      "coverage_x2": 0.757361114025116,
+      "coverage_x3": 0.8811110854148865
+    },
+    {
+      "scene_idx": 409,
+      "n_gaussians": 300,
+      "csv_coverage_mean": 0.4753418266773224,
+      "coverage_x1": 0.4753418266773224,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.5677521228790283,
+      "coverage_x2": 0.6525530219078064,
+      "coverage_x3": 0.8005371689796448
+    },
+    {
+      "scene_idx": 420,
+      "n_gaussians": 1919,
+      "csv_coverage_mean": 0.372259259223938,
+      "coverage_x1": 0.372259259223938,
+      "visible_share": 0.9999999403953552,
+      "radius_ratio_median": 2.017732620239258,
+      "coverage_x2": 0.43909257650375366,
+      "coverage_x3": 0.5172407031059265
+    },
+    {
+      "scene_idx": 424,
+      "n_gaussians": 479,
+      "csv_coverage_mean": 0.663818359375,
+      "coverage_x1": 0.663818359375,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.5100431442260742,
+      "coverage_x2": 0.82861328125,
+      "coverage_x3": 0.92333984375
+    },
+    {
+      "scene_idx": 430,
+      "n_gaussians": 1689,
+      "csv_coverage_mean": 0.29150390625,
+      "coverage_x1": 0.29150390625,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.3864390850067139,
+      "coverage_x2": 0.34356689453125,
+      "coverage_x3": 0.4002838134765625
+    },
+    {
+      "scene_idx": 434,
+      "n_gaussians": 897,
+      "csv_coverage_mean": 0.5989583134651184,
+      "coverage_x1": 0.5989583134651184,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.5551793575286865,
+      "coverage_x2": 0.7284722328186035,
+      "coverage_x3": 0.8419560194015503
+    },
+    {
+      "scene_idx": 437,
+      "n_gaussians": 300,
+      "csv_coverage_mean": 0.5092857480049133,
+      "coverage_x1": 0.5092857480049133,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.3333956003189087,
+      "coverage_x2": 0.6824206709861755,
+      "coverage_x3": 0.8272619247436523
+    },
+    {
+      "scene_idx": 445,
+      "n_gaussians": 300,
+      "csv_coverage_mean": 0.326904296875,
+      "coverage_x1": 0.326904296875,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.6557272672653198,
+      "coverage_x2": 0.46337890625,
+      "coverage_x3": 0.63232421875
+    },
+    {
+      "scene_idx": 456,
+      "n_gaussians": 300,
+      "csv_coverage_mean": 0.5619945526123047,
+      "coverage_x1": 0.5619945526123047,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.2449041604995728,
+      "coverage_x2": 0.7574863433837891,
+      "coverage_x3": 0.8946418762207031
+    },
+    {
+      "scene_idx": 490,
+      "n_gaussians": 300,
+      "csv_coverage_mean": 0.5249471068382263,
+      "coverage_x1": 0.5249471068382263,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.3899507522583008,
+      "coverage_x2": 0.7359127402305603,
+      "coverage_x3": 0.8892857432365417
+    },
+    {
+      "scene_idx": 510,
+      "n_gaussians": 853,
+      "csv_coverage_mean": 0.4222819209098816,
+      "coverage_x1": 0.4222819209098816,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.280469298362732,
+      "coverage_x2": 0.5206807851791382,
+      "coverage_x3": 0.6186320185661316
+    },
+    {
+      "scene_idx": 526,
+      "n_gaussians": 300,
+      "csv_coverage_mean": 0.48264554142951965,
+      "coverage_x1": 0.48264551162719727,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.3272655010223389,
+      "coverage_x2": 0.6447619199752808,
+      "coverage_x3": 0.7858465909957886
+    },
+    {
+      "scene_idx": 560,
+      "n_gaussians": 353,
+      "csv_coverage_mean": 0.4607442319393158,
+      "coverage_x1": 0.4607442319393158,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.2179992198944092,
+      "coverage_x2": 0.6278483271598816,
+      "coverage_x3": 0.8023529052734375
+    },
+    {
+      "scene_idx": 570,
+      "n_gaussians": 751,
+      "csv_coverage_mean": 0.346923828125,
+      "coverage_x1": 0.346923828125,
+      "visible_share": 0.9999999403953552,
+      "radius_ratio_median": 1.9272593259811401,
+      "coverage_x2": 0.411376953125,
+      "coverage_x3": 0.490234375
+    },
+    {
+      "scene_idx": 592,
+      "n_gaussians": 320,
+      "csv_coverage_mean": 0.5162302255630493,
+      "coverage_x1": 0.5162301659584045,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.32295823097229,
+      "coverage_x2": 0.688015878200531,
+      "coverage_x3": 0.8384127020835876
+    },
+    {
+      "scene_idx": 597,
+      "n_gaussians": 1155,
+      "csv_coverage_mean": 0.6110185384750366,
+      "coverage_x1": 0.6110185384750366,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.5807037353515625,
+      "coverage_x2": 0.712800920009613,
+      "coverage_x3": 0.799699068069458
+    },
+    {
+      "scene_idx": 600,
+      "n_gaussians": 300,
+      "csv_coverage_mean": 0.576446533203125,
+      "coverage_x1": 0.576446533203125,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.286429524421692,
+      "coverage_x2": 0.7845306396484375,
+      "coverage_x3": 0.92401123046875
+    },
+    {
+      "scene_idx": 606,
+      "n_gaussians": 300,
+      "csv_coverage_mean": 0.45458984375,
+      "coverage_x1": 0.45458984375,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.5635559558868408,
+      "coverage_x2": 0.6461181640625,
+      "coverage_x3": 0.8387451171875
+    },
+    {
+      "scene_idx": 614,
+      "n_gaussians": 300,
+      "csv_coverage_mean": 0.24018096923828125,
+      "coverage_x1": 0.24018096923828125,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.3949944972991943,
+      "coverage_x2": 0.3412017822265625,
+      "coverage_x3": 0.46521759033203125
+    },
+    {
+      "scene_idx": 616,
+      "n_gaussians": 466,
+      "csv_coverage_mean": 0.4121907651424408,
+      "coverage_x1": 0.4121907651424408,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.6265193223953247,
+      "coverage_x2": 0.5221354365348816,
+      "coverage_x3": 0.649169921875
+    },
+    {
+      "scene_idx": 618,
+      "n_gaussians": 300,
+      "csv_coverage_mean": 0.309356689453125,
+      "coverage_x1": 0.309356689453125,
+      "visible_share": 1.0,
+      "radius_ratio_median": 1.3698798418045044,
+      "coverage_x2": 0.4465789794921875,
+      "coverage_x3": 0.6092987060546875
+    }
+  ],
+  "summary": {
+    "csv_coverage_mean": 0.4278809726238251,
+    "coverage_x1": 0.4278809726238251,
+    "coverage_x2": 0.5859273374080658,
+    "coverage_x3": 0.7372877299785614,
+    "visible_share": 1.0,
+    "radius_ratio_median": 1.3779887557029724
+  }
+}
